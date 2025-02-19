@@ -1,6 +1,5 @@
 # Custom .gitignore
 data/*
-data
 
 
 # Pre defined .gitignore

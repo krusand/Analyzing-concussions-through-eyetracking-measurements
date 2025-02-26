@@ -1,0 +1,25 @@
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:          peak_velocity   R-squared:                       0.002
+Model:                            OLS   Adj. R-squared:                  0.002
+Method:                 Least Squares   F-statistic:                     47.68
+Date:                Thu, 20 Feb 2025   Prob (F-statistic):           5.12e-12
+Time:                        13:12:42   Log-Likelihood:            -1.7067e+05
+No. Observations:               27317   AIC:                         3.413e+05
+Df Residuals:                   27315   BIC:                         3.414e+05
+Df Model:                           1                                         
+Covariance Type:            nonrobust                                         
+=====================================================================================
+                        coef    std err          t      P>|t|      [0.025      0.975]
+-------------------------------------------------------------------------------------
+const               266.0277      1.027    259.030      0.000     264.015     268.041
+condition_encoded   -10.4876      1.519     -6.905      0.000     -13.464      -7.511
+==============================================================================
+Omnibus:                    11538.340   Durbin-Watson:                   2.229
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):           591693.819
+Skew:                           1.269   Prob(JB):                         0.00
+Kurtosis:                      25.658   Cond. No.                         2.53
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.

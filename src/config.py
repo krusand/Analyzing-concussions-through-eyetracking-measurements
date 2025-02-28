@@ -4,6 +4,7 @@ PROJ_ROOT = Path(__file__).resolve().parents[1]
 
 DATA_DIR = PROJ_ROOT / "data"
 ASC_DIR = DATA_DIR / "asc_files"
+ASC_RAW_DIR = ASC_DIR / "raw"
 METADATA_DIR = DATA_DIR / "metadata"
 
 RED = "255 0 0"

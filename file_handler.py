@@ -29,12 +29,33 @@ def move_files():
                     shutil.copyfile(file_path, eyetracking_convert_path + file)
 
 
-def are_all_edf_are_converted():
+def get_files_to_be_re_encoded():
     root_path = "/mnt/c/Users/idwe/Documents/Data/"
     eyetracking_path = root_path + 'EyetrackingData_convert_edf/'
     eyetracking_files = os.listdir(eyetracking_path)
-    print(eyetracking_files)
+    edf_files = {file[:-4] for file in eyetracking_files if file.endswith(".EDF")}
+    asc_files = {file[:-4] for file in eyetracking_files if file.endswith(".asc")}
+    return [file + ".EDF" for file in (edf_files - asc_files)]
+
+def move_file(file_name):
+    root_path = "/mnt/c/Users/idwe/Documents/Data/"
+    eyetracking_path = root_path + 'EyetrackingData_convert_edf/'
+    eyetracking_missing_path = eyetracking_path + "missing/"
+    shutil.move(src=eyetracking_path + file_name,
+                dst=eyetracking_missing_path + file_name)
+
+def move_files_to_be_re_encoded():
+    files = get_files_to_be_re_encoded()
+    for file in files:
+        move_file(file)
+
+def metadata():
+    
 
 
 def main():
-    are_all_edf_are_converted()
+    #move_files_to_be_re_encoded()
+    get_files_to_be_re_encoded()
+
+if __name__ == "__main__":
+    main()

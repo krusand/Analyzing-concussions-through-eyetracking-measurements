@@ -6,6 +6,7 @@ DATA_DIR = PROJ_ROOT / "data"
 ASC_DIR = DATA_DIR / "asc_files"
 ASC_RAW_DIR = ASC_DIR / "raw"
 METADATA_DIR = DATA_DIR / "metadata"
+METADATA_RAW_DIR = METADATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 
 RED = "255 0 0"

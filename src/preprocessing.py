@@ -9,17 +9,6 @@ from tqdm import tqdm
 
 from config import *
 
-
-# Fittslaw          : MSG	2967684 TRIAL_VAR_LABELS distance target_width
-# Anti-saccade      : MSG	1913870 TRIAL_VAR_LABELS side delay
-# Reactions         : MSG   1189006 TRIAL_VAR_LABELS pos_x pos_y delay
-# Fixations         : MSG	1443219 TRIAL_VAR_LABELS pos_x pos_y target_shape
-# King-devick       : MSG	2661907 TRIAL_VAR_LABELS marks time_elapsed
-# Patterns          : MSG	3983900 TRIAL_VAR_LABELS angle speed
-# Shapes            : MSG	1322015 TRIAL_VAR_LABELS shape
-# Smooth Pursuits   : MSG	3768702 TRIAL_VAR_LABELS shape speed
-
-
 def get_events_from_trial_var_labels_line(line):
     linesplit= line.split()
     return linesplit[3:]
@@ -252,8 +241,7 @@ def process_asc_files(files, experiment):
         event_dfs.append(process_asc_file(filename=file, experiment=experiment))
     return pd.concat(event_dfs)
 
-
-def main():
+def run_asc_preprocessing():
     file_filters = ["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
     experiments = ["ANTI_SACCADE" , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
     #participant_metadata = pd.read_excel(DATA_DIR / "demographic_info.xlsx")
@@ -263,6 +251,10 @@ def main():
         path_save = PROCESSED_DIR / f"{experiment}.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
+
+
+def main():
+    run_asc_preprocessing()
 
 if __name__ == '__main__':
     main()

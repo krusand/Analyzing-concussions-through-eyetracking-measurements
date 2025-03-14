@@ -1,6 +1,6 @@
 # Custom .gitignore
 data/*
-
+.Rhistory
 
 # Pre defined .gitignore
 

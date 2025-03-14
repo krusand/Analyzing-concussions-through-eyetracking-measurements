@@ -162,39 +162,6 @@ def process_line(line, participant_id, current_trial_id, experiment, trial_var_l
     else:
         return [None]
 
-def add_stimulus_events(events:pd.DataFrame, participant_id, experiment):
-    stimulus_onset_events = []
-    red_fixpoints = events[(events['event'] == "FIXPOINT") & (events["colour"] == RED) & (events["experiment"] == "ANTI-SACCADE")]
-    white_fixpoints = events[(events['event'] == "FIXPOINT") & (events["colour"] == WHITE) & (events["experiment"] == "ANTI-SACCADE")]
-
-    for _, row in red_fixpoints.iterrows():
-        current_trial_id = row["trial_id"]
-
-        white_fixpoints_current_trial = white_fixpoints[white_fixpoints["trial_id"] == current_trial_id]
-
-        if not white_fixpoints_current_trial.empty:
-            fixpoint_white_time = int(white_fixpoints_current_trial.iloc[0]["time"])
-            stimulus_onset = events[(events["trial_id"] == current_trial_id) & (events["event"].str.startswith("TRIAL_VAR_DATA"))]
-            if not stimulus_onset.empty:
-                if "time_elapsed" in stimulus_onset.columns: 
-                    stimulus_onset_ms = int(float(stimulus_onset.iloc[0]["time_elapsed"]) * 1000)
-                elif "delay" in stimulus_onset.columns:
-                    stimulus_onset_ms = int(float(stimulus_onset.iloc[0]["delay"]) * 1000)
-                stimulus_onset_time = fixpoint_white_time + stimulus_onset_ms
-        
-        stimulus_onset_events.append({
-                "experiment": experiment
-                , "participant_id": participant_id
-                , "trial_id": current_trial_id
-                , "time": stimulus_onset_time
-                , "event": "STIMULUS_ONSET"
-                , "colour": row["colour"]
-                , "stimulus_x": row["stimulus_x"]
-                , "stimulus_y": row["stimulus_y"]
-        })
-    
-    events = pd.concat([events, pd.DataFrame(stimulus_onset_events)], ignore_index=True)
-    return events
 
 def process_asc_file(filename, experiment):
     print(f"Processing {filename}")
@@ -230,9 +197,6 @@ def process_asc_file(filename, experiment):
     
     print("Finished initial event loading")
 
-    if experiment == "ANTI-SACCADE":
-        print("Adding stimulus events")
-        events = add_stimulus_events(events, participant_id, experiment)
     return events.sort_values(by = ["participant_id", "trial_id", "time"]).reset_index(drop=True)
 
 def process_asc_files(files, experiment):
@@ -252,9 +216,12 @@ def run_asc_preprocessing():
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 
-
 def main():
-    run_asc_preprocessing()
+    data_raw = pd.read_parquet(PROCESSED_DIR / "ANTI_SACCADE.pq")
+    
+    data = data_raw[(data_raw["event"].isin(["SSACC", "SFIX"]))]
+    
+    print(data.head())
 
 if __name__ == '__main__':
     main()

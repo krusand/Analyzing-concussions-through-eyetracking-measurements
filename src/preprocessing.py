@@ -217,11 +217,7 @@ def run_asc_preprocessing():
         df.to_parquet(path_save, index=False)
 
 def main():
-    data_raw = pd.read_parquet(PROCESSED_DIR / "ANTI_SACCADE.pq")
-    
-    data = data_raw[(data_raw["event"].isin(["SSACC", "SFIX"]))]
-    
-    print(data.head())
+    run_asc_preprocessing()
 
 if __name__ == '__main__':
     main()

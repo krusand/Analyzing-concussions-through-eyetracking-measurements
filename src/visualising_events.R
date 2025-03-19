@@ -5,15 +5,26 @@ library(ggplot2)
 library(tidyr)
 library(ggExtra)
 library(plotly)
-
+options(scipen=999)
 
 setwd("/Users/viscom2025/Documents/Github/Analyzing-concussions-through-eyetracking-measurements")
 
 
-
 # Anti saccade ----
 
-anti_saccade_raw <- read_parquet("data/processed/ANTI_SACCADE.pq")
+anti_saccade_raw <- read_parquet("data/processed/ANTI_SACCADE.pq") %>% 
+  group_by(participant_id, trial_id) %>% 
+  mutate(fixpoint_white_time = case_when(
+    event == 'FIXPOINT' & colour == '255 255 255' ~ time
+  )) %>% 
+  mutate(fixpoint_white_time = first(na.omit(fixpoint_white_time))) %>% 
+  mutate(time_elapsed = coalesce(first(na.omit(delay)), first(na.omit(time_elapsed)))) %>% 
+  mutate(time = case_when(
+    event == 'FIXPOINT' & colour == '255 0 0' ~ as.numeric(fixpoint_white_time) + 1000*as.numeric(time_elapsed),
+    T ~ time
+  )) %>% 
+  ungroup()
+
 
 ## Cleaning ----
 
@@ -114,8 +125,8 @@ anti_saccade <- anti_saccade_left %>%
 
 ## Visualising ----
 
-p_id <- 237
-t_id <- 2
+p_id <- 395
+t_id <- 0
 
 anti_saccade_plotting_data <- anti_saccade %>% 
   filter(participant_id == p_id , trial_id == t_id) %>% 
@@ -154,7 +165,6 @@ reactions_raw <- read_parquet("data/processed/REACTION.pq") %>%
   filter(!(participant_id %in% special_participants)) %>% 
   mutate(stimulus_x = coalesce(stimulus_x, as.numeric(pos_x)),
          stimulus_y = coalesce(stimulus_y, as.numeric(pos_y))) %>% 
-  arrange(participant_id, trial_id, time) %>% 
   select(-c(pos_x,pos_y))
 
 
@@ -166,6 +176,7 @@ reactions_right <- reactions_raw %>%
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
   mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(colour, stimulus_x, stimulus_y), .direction = "down") %>% 
   mutate(m_stand_time = m_time - min(m_time)) %>% 
@@ -208,6 +219,7 @@ reactions_left <- reactions_raw %>%
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
   mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(colour, stimulus_x, stimulus_y), .direction = "down") %>% 
   mutate(m_stand_time = m_time - min(m_time)) %>% 
@@ -275,6 +287,224 @@ reactions_plotting_data <- reactions %>%
 
 
 p <- ggplot(data = reactions_plotting_data, 
+            aes(x=x_plotting, y=y_plotting, colour = colour_plotting, 
+                label = event_nr)) + 
+  geom_point() +
+  geom_path() +
+  facet_wrap(~eye)
+
+ggplotly(p, tooltip = c("label", "colour_plotting"))
+
+# King Devick ----
+
+king_devick_raw <- read_parquet("data/processed/KING_DEVICK.pq")
+
+
+## Cleaning ----
+
+king_devick_right <- king_devick_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "R")) %>% 
+  mutate(m_eye = "R") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(time_elapsed, .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , time_elapsed
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+king_devick_left <- king_devick_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "L")) %>% 
+  mutate(m_eye = "L") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(time_elapsed, .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , time_elapsed
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+
+king_devick <- king_devick_left %>% 
+  bind_rows(king_devick_right)
+
+## Visualising ----
+
+
+p_id <- 237
+t_id <- 2
+
+king_devick_plotting_data <- king_devick %>% 
+  filter(participant_id == p_id , trial_id == t_id) %>% 
+  mutate(time_elapsed_ms = as.numeric(time_elapsed) * 1000) %>% 
+  group_by(event) %>% 
+  filter(event %in% c("EFIX") & stand_time < time_elapsed_ms ) %>% 
+  mutate(x_plotting = fix_x,
+         y_plotting = fix_y) %>% 
+  group_by(eye) %>% 
+  mutate(event_nr = row_number()) %>% 
+  ungroup() 
+
+
+
+p <- ggplot(data = king_devick_plotting_data, 
+            aes(x=x_plotting, y=y_plotting, label = event_nr)) + 
+  geom_point() +
+  geom_path() +
+  facet_wrap(~eye)
+
+ggplotly(p, tooltip = c("label"))
+
+
+
+# Fitts Law ----
+
+
+
+fitts_law_raw <- read_parquet("data/processed/FITTS_LAW.pq")
+
+
+## Cleaning ----
+
+fitts_law_right <- fitts_law_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "R")) %>% 
+  mutate(m_eye = "R") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(distance, target_width), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+
+
+fitts_law_left <- fitts_law_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "L")) %>% 
+  mutate(m_eye = "L") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(distance, target_width), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+fitts_law <- fitts_law_left %>% 
+  bind_rows(fitts_law_right)
+
+
+
+
+
+## Visualising ----
+
+p_id <- 396
+t_id <- 4
+
+fitts_law_plotting_data <- fitts_law %>% 
+  filter(participant_id == p_id , trial_id == t_id) %>% 
+  filter(event %in% c("FIXPOINT", "EFIX") ) %>% 
+  mutate(x_plotting = coalesce(fix_x, stimulus_x),
+         y_plotting = coalesce(fix_y, stimulus_y),
+         colour_plotting = case_when(
+           stimulus_colour == "255 0 0" & event == "FIXPOINT" ~ "Stimulus",
+           event == "EFIX" ~ "Fixations"
+         )) %>% 
+  group_by(eye,colour_plotting) %>% 
+  mutate(event_nr = row_number()) %>% 
+  ungroup()
+
+
+p <- ggplot(data = fitts_law_plotting_data, 
             aes(x=x_plotting, y=y_plotting, colour = colour_plotting, 
                 label = event_nr)) + 
   geom_point() +

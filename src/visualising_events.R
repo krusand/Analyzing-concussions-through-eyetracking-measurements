@@ -1,10 +1,13 @@
-library(tidyverse)
+library(dplyr)
 library(openxlsx)
 library(arrow)
+library(ggplot2)
+library(tidyr)
 library(ggExtra)
 library(plotly)
 
-setwd("C:/Users/idwe/Documents/Github/Analyzing-concussions-through-eyetracking-measurements")
+
+setwd("/Users/viscom2025/Documents/Github/Analyzing-concussions-through-eyetracking-measurements")
 
 special_participants <- c(87, 89, 93, 96, 103, 105, 109, 117, 118, 119, 120, 127, 128, 141)
 # Anti saccade ----
@@ -63,8 +66,7 @@ anti_saccade
 ## Visualising ----
 
 p_id <- 237
-t_id <- 0
-
+t_id <- 1
 
 anti_saccade_plotting_data <- anti_saccade %>% 
   filter(participant_id == p_id , trial_id == t_id) %>% 
@@ -78,16 +80,19 @@ anti_saccade_plotting_data <- anti_saccade %>%
            stimulus_colour == "255 255 255" & event == "EFIX" ~ "Fixations - Pre stimulus",
          )) %>% 
   group_by(colour_plotting) %>% 
-  mutate(event_nr = row_number())
+  mutate(event_nr = row_number()) %>% 
+  ungroup() %>% 
+  filter(!is.na(stimulus_active))
 
 
 
-ggplot() + 
-  ggforce::geom_link2(data = anti_saccade_plotting_data %>% filter(colour_plotting %in% c("Fixations - Post stimulus", "Fixations - Pre stimulus"))
-                      , aes(x=x_plotting, y=y_plotting, colour = colour_plotting, alpha=stat(index)),
-                      lineend = 'round', n = 10) +
-  geom_point(data = anti_saccade_plotting_data %>% mutate(duration = if_else(is.na(duration), 100, duration)),
-             aes(x=x_plotting, y=y_plotting, colour = colour_plotting, size=duration/4)) 
+p <- ggplot(data = anti_saccade_plotting_data, 
+       aes(x=x_plotting, y=y_plotting, colour = colour_plotting, label=event_nr)) + 
+  geom_point() +
+  geom_path()
+
+ggplotly(p)
+
 
 # Reactions ----
 
@@ -100,6 +105,14 @@ reactions_raw <- read_parquet("data/processed/REACTION.pq") %>%
 reactions <- reactions_raw %>% 
   mutate(time = coalesce(time, end_time)) %>% 
   arrange(participant_id, trial_id, time) 
+
+
+
+
+
+
+
+
 
 
 

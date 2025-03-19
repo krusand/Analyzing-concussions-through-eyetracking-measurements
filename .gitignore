@@ -1,6 +1,7 @@
 # Custom .gitignore
 data/*
 
+.DS_store
 
 # Pre defined .gitignore
 

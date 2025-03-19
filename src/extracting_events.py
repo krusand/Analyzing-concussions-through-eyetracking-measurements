@@ -1,10 +1,7 @@
 # Libraries
 import os
-import shutil
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from tqdm import tqdm
 
 from config import *
@@ -208,7 +205,6 @@ def process_asc_files(files, experiment):
 def run_asc_preprocessing():
     file_filters = ["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
     experiments = ["ANTI_SACCADE" , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
-    #participant_metadata = pd.read_excel(DATA_DIR / "demographic_info.xlsx")
     for file_filter, experiment in zip(file_filters, experiments):
         asc_files = [f for f in os.listdir(ASC_RAW_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
@@ -217,6 +213,7 @@ def run_asc_preprocessing():
         df.to_parquet(path_save, index=False)
 
 def main():
+    # Convert asc files to parquet files
     run_asc_preprocessing()
 
 if __name__ == '__main__':

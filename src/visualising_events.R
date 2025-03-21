@@ -405,7 +405,6 @@ ggplotly(p, tooltip = c("label"))
 
 fitts_law_raw <- read_parquet("data/processed/FITTS_LAW.pq")
 
-
 ## Cleaning ----
 
 fitts_law_right <- fitts_law_raw %>% 
@@ -513,4 +512,358 @@ p <- ggplot(data = fitts_law_plotting_data,
 
 ggplotly(p, tooltip = c("label", "colour_plotting"))
 
+
+# Smooth Pursuit ----
+special_participants <- c(87, 89, 93, 96, 103, 105, 109, 117, 118, 119, 120, 127, 128, 141)
+
+smooth_pursuits_raw <- read_parquet("data/processed/SMOOTH_PURSUITS.pq") %>% 
+  filter(!participant_id %in% special_participants)
+
+
+## Cleaning ----
+
+
+smooth_pursuits_right <- smooth_pursuits_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "R")) %>% 
+  mutate(m_eye = "R") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(shape, speed), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , shape
+         , speed
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+
+
+smooth_pursuits_left <- smooth_pursuits_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "L")) %>% 
+  mutate(m_eye = "L") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(shape, speed), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , shape
+         , speed
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+smooth_pursuits <- smooth_pursuits_left %>% 
+  bind_rows(smooth_pursuits_right)
+
+## Visualisation ----
+
+p_id <- 396
+t_id <- 4
+
+smooth_pursuits_plotting <- smooth_pursuits %>% 
+  filter(participant_id == p_id , trial_id == t_id) %>% 
+  filter(event %in% c("EFIX", "FIXPOINT") ) %>% 
+  mutate(x_plotting = coalesce(fix_x, stimulus_x),
+         y_plotting = coalesce(fix_y, stimulus_y),
+         colour_plotting = case_when(
+           event == "EFIX" ~ "Fixations",
+           stimulus_colour == "255 255 255" & event == "FIXPOINT" ~ "Stimulus"
+         )) %>% 
+  group_by(eye,colour_plotting) %>% 
+  mutate(event_nr = row_number()) %>% 
+  ungroup()
+
+
+p <- ggplot(data = smooth_pursuits_plotting, 
+            aes(x=x_plotting, y=y_plotting, colour = colour_plotting, 
+                label = event_nr)) + 
+  geom_point() +
+  geom_path() +
+  xlim(0,1920) +
+  ylim(0,1080)+
+  facet_wrap(~eye)
+
+ggplotly(p, tooltip = c("label", "colour_plotting"))
+
+
+
+# Shapes ----
+
+shapes_raw <- read_parquet("data/processed/SHAPES.pq") %>% 
+  filter(!participant_id %in% special_participants)
+
+## Cleaning ----
+
+shapes_right <- shapes_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "R")) %>% 
+  mutate(m_eye = "R") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(shape), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , shape
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+
+
+shapes_left <- shapes_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "L")) %>% 
+  mutate(m_eye = "L") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(shape), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , shape
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+shapes <- shapes_left %>% 
+  bind_rows(shapes_right)
+
+## Visualisation ----
+
+p_id <- 396
+t_id <- 1
+
+shapes_plotting <- shapes %>% 
+  filter(participant_id == p_id , trial_id == t_id) %>% 
+  filter(event %in% c("EFIX", "FIXPOINT") ) %>% 
+  mutate(x_plotting = coalesce(fix_x, stimulus_x),
+         y_plotting = coalesce(fix_y, stimulus_y),
+         colour_plotting = case_when(
+           event == "EFIX" ~ "Fixations",
+           stimulus_colour == "255 255 255" & event == "FIXPOINT" ~ "Stimulus"
+         )) %>% 
+  group_by(eye,colour_plotting) %>% 
+  mutate(event_nr = row_number()) %>% 
+  ungroup()
+
+
+p <- ggplot(data = shapes_plotting, 
+            aes(x=x_plotting, y=y_plotting, colour = colour_plotting, 
+                label = event_nr)) + 
+  geom_point() +
+  geom_path() +
+  xlim(0,1920) +
+  ylim(0,1080)+
+  facet_wrap(~eye)
+
+ggplotly(p, tooltip = c("label", "colour_plotting"))
+
+
+
+# Evil bastard ----
+
+evil_bastard_raw <- read_parquet("data/processed/EVIL_BASTARD.pq") %>% 
+  filter(!participant_id %in% special_participants)
+
+
+## Cleaning ----
+
+evil_bastard_right <- evil_bastard_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "R")) %>% 
+  mutate(m_eye = "R") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(angle, speed), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , angle
+         , speed
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+
+
+evil_bastard_left <- evil_bastard_raw %>% 
+  filter(!(event %in% c("SSACC", "SFIX"))) %>% 
+  filter(eye %in% c(NA, "L")) %>% 
+  mutate(m_eye = "L") %>% 
+  mutate(m_time = coalesce(time, end_time)) %>% 
+  arrange(participant_id, trial_id, m_time) %>% 
+  group_by(participant_id, trial_id) %>% 
+  fill(c(angle, speed), .direction = "downup") %>% 
+  mutate(m_stand_time = m_time - min(m_time)) %>% 
+  mutate(m_stand_start_time = start_time - min(m_time)) %>% 
+  mutate(m_stand_end_time = end_time - min(m_time)) %>% 
+  ungroup() %>% 
+  select(experiment
+         , participant_id
+         , trial_id
+         , stand_time=m_stand_time
+         , eye = m_eye
+         , event
+         , angle
+         , speed
+         , stimulus_colour = colour
+         , stimulus_x
+         , stimulus_y
+         , fix_x = x
+         , fix_y = y
+         , sacc_start_x = start_x
+         , sacc_start_y = start_y
+         , sacc_end_x = end_x
+         , sacc_end_y = end_y
+         , stand_start_time = m_stand_start_time 
+         , stand_end_time = m_stand_end_time
+         , avg_pupil_size
+         , peak_velocity
+         , amplitude
+         , duration)
+
+evil_bastard <- evil_bastard_left %>% 
+  bind_rows(evil_bastard_right)
+
+
+evil_bastard %>% 
+  count(stimulus_colour)
+
+## Visualisation ----
+
+p_id <- 106
+t_id <- 2
+
+evil_bastard_plotting <- evil_bastard %>% 
+  filter(participant_id == p_id , trial_id == t_id) %>% 
+  filter(event %in% c("EFIX", "FIXPOINT") ) %>% 
+  mutate(x_plotting = coalesce(fix_x, stimulus_x),
+         y_plotting = coalesce(fix_y, stimulus_y),
+         colour_plotting = case_when(
+           event == "EFIX" ~ "Fixations",
+           stimulus_colour == "0 0 255" & event == "FIXPOINT" ~ "Stimulus - Blue",
+           stimulus_colour == "255 0 0" & event == "FIXPOINT" ~ "Stimulus - Red",
+           event == 'FIXPOINT' ~ 'Stimulus'
+         )) %>% 
+  group_by(eye,colour_plotting) %>% 
+  mutate(event_nr = row_number()) %>% 
+  ungroup()
+
+
+p <- ggplot(data = evil_bastard_plotting, 
+            aes(x=x_plotting, y=y_plotting, colour = colour_plotting, 
+                label = event_nr)) + 
+  geom_point() +
+  geom_path() +
+  xlim(0,1920) +
+  ylim(0,1080)+
+  facet_wrap(~eye)
+
+ggplotly(p, tooltip = c("label", "colour_plotting"))
 

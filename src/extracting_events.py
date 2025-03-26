@@ -163,7 +163,7 @@ def process_line(line, participant_id, current_trial_id, experiment, trial_var_l
 def process_asc_file(filename, experiment):
     print(f"Processing {filename}")
 
-    filepath = ASC_RAW_DIR / filename
+    filepath = ASC_RAW_EVENTS_DIR / filename
     participant_id = filename.split("_")[1]
 
     with open(filepath, 'r') as fp:
@@ -206,7 +206,7 @@ def run_asc_preprocessing():
     file_filters = ["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
     experiments = ["ANTI_SACCADE" , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
     for file_filter, experiment in zip(file_filters, experiments):
-        asc_files = [f for f in os.listdir(ASC_RAW_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
+        asc_files = [f for f in os.listdir(ASC_RAW_EVENTS_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
         path_save = PROCESSED_DIR / f"{experiment}.pq"
         print(f"Saving to {path_save}")

@@ -142,9 +142,11 @@ def process_asc_files(asc_files, experiment):
     for file_name in tqdm(asc_files):
         file_path = ASC_RAW_SAMPLES_DIR / file_name
         print(file_path)
-        
         # Information from event
         participant_id = file_name.split("_")[1]
+        if participant_id == '237':
+            continue
+        
         if str(participant_id) in list(df_events["participant_id"]):
             df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
         else: continue

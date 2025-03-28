@@ -17,3 +17,9 @@ RED = "255 0 0"
 GREEN = "0 255 0"
 BLUE = "0 0 255"
 WHITE = "255 255 255"
+
+
+# Prperocessing
+numeric_columns_anti_saccade = ['participant_id', 'trial_id', 'time', 'stimulus_x', 'stimulus_y', 'start_time', 'end_time', 
+                                'duration', 'x', 'y', 'avg_pupil_size', 'start_x', 'start_y', 'end_x', 'end_y', 'amplitude', 
+                                'peak_velocity', 'time_elapsed', 'delay']

@@ -24,6 +24,7 @@ def get_events_from_trial_id_line(participant_id,line,experiment):
 def get_events_from_start_line(participant_id, current_trial_id, line,experiment):
     linesplit = line.split()
     time = int(linesplit[1])
+    
     return {"experiment": experiment
                     ,"participant_id": participant_id
                     , "trial_id": current_trial_id
@@ -208,7 +209,7 @@ def run_asc_preprocessing():
     for file_filter, experiment in zip(file_filters, experiments):
         asc_files = [f for f in os.listdir(ASC_RAW_EVENTS_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
-        path_save = PROCESSED_DIR / f"{experiment}.pq"
+        path_save = RAW_DIR / f"{experiment}.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 

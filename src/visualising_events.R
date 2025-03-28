@@ -12,7 +12,7 @@ setwd("/Users/viscom2025/Documents/Github/Analyzing-concussions-through-eyetrack
 
 # Anti saccade ----
 
-anti_saccade_raw <- read_parquet("data/processed/ANTI_SACCADE.pq") %>% 
+anti_saccade_raw <- read_parquet("data/anti_saccade_processed.pq") %>% #read_parquet("data/processed/ANTI_SACCADE.pq") %>% 
   group_by(participant_id, trial_id) %>% 
   mutate(fixpoint_white_time = case_when(
     event == 'FIXPOINT' & colour == '255 255 255' ~ time
@@ -55,6 +55,7 @@ anti_saccade_right <- anti_saccade_raw %>%
          , eye = m_eye
          , event
          , delay = m_stimulus_delay
+         , stimulus_side = m_stimulus_side
          , stimulus_active = m_stimulus_active
          , stimulus_colour = colour
          , stimulus_x
@@ -100,6 +101,7 @@ anti_saccade_left <- anti_saccade_raw %>%
          , eye = m_eye
          , event
          , delay = m_stimulus_delay
+         , stimulus_side = m_stimulus_side
          , stimulus_active = m_stimulus_active
          , stimulus_colour = colour
          , stimulus_x
@@ -121,7 +123,8 @@ anti_saccade_left <- anti_saccade_raw %>%
 anti_saccade <- anti_saccade_left %>% 
   bind_rows(anti_saccade_right)
 
-
+anti_saccade %>% 
+  write_parquet("data/anti_saccade_processed.pq")
 
 ## Visualising ----
 

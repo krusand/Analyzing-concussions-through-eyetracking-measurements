@@ -136,7 +136,7 @@ def read_asc_file(file_path, eyes_tracked):
 
 def process_asc_files(asc_files, experiment):
     samples = []
-    df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}.pq")
+    df_events = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
     
     for file_name in tqdm(asc_files):
@@ -165,8 +165,8 @@ def process_asc_files(asc_files, experiment):
     return pd.concat(samples, ignore_index=True)
 
 def convert_asc_to_pq():
-    file_filters = ["anti-saccade"] #, "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
-    experiments = ["ANTI_SACCADE"] # , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+    file_filters = ["Patterns"] #, "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
+    experiments = ["EVIL_BASTARD"] # , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
     for file_filter, experiment in zip(file_filters, experiments):
         asc_files = [f for f in os.listdir(ASC_RAW_SAMPLES_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)

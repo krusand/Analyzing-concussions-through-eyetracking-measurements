@@ -16,7 +16,7 @@ def get_events_from_trial_id_line(participant_id,line,experiment):
     time = int(linesplit[1])
 
     return {"experiment": experiment
-            ,"participant_id": participant_id
+            , "participant_id": participant_id
             , "trial_id": current_trial_id
             , "time": time
             , "event": "TRIALID"}
@@ -26,19 +26,19 @@ def get_events_from_start_line(participant_id, current_trial_id, line,experiment
     time = int(linesplit[1])
     
     return {"experiment": experiment
-                    ,"participant_id": participant_id
-                    , "trial_id": current_trial_id
-                    , "time": time
-                    , "event": "START"}
+            , "participant_id": participant_id
+            , "trial_id": current_trial_id
+            , "time": time
+            , "event": "START"}
 
 def get_events_from_end_line(participant_id, current_trial_id, line,experiment):
     linesplit = line.split()
     time = int(linesplit[1])
     return {"experiment": experiment
-                    ,"participant_id": participant_id
-                    , "trial_id": current_trial_id
-                    , "time": time
-                    , "event": "END"}
+            , "participant_id": participant_id
+            , "trial_id": current_trial_id
+            , "time": time
+            , "event": "END"}
 
 def get_events_from_trial_var_data_line(participant_id, current_trial_id, line,experiment, trial_var_labels):
     linesplit = line.split()
@@ -47,11 +47,11 @@ def get_events_from_trial_var_data_line(participant_id, current_trial_id, line,e
     trial_line_events_dict = {var_label: trial_event_value for var_label, trial_event_value in zip(trial_var_labels, trial_line_events)}
 
     return {"experiment": experiment
-                    ,"participant_id": participant_id
-                    , "trial_id": current_trial_id
-                    , "time": time
-                    , "event": "TRIAL_VAR_DATA"
-                    , **trial_line_events_dict}
+            , "participant_id": participant_id
+            , "trial_id": current_trial_id
+            , "time": time
+            , "event": "TRIAL_VAR_DATA"
+            , **trial_line_events_dict}
 
 def get_events_from_fixpoint_line(participant_id, current_trial_id, line, experiment):
     linesplit = line.split()
@@ -60,13 +60,13 @@ def get_events_from_fixpoint_line(participant_id, current_trial_id, line, experi
     stimulus_x = float(linesplit[10])
     stimulus_y = float(linesplit[11])
     return {"experiment": experiment
-                    ,"participant_id": participant_id
-                    , "trial_id": current_trial_id
-                    , "time": time
-                    , "event": "FIXPOINT"
-                    , "colour": colour
-                    , "stimulus_x": stimulus_x
-                    , "stimulus_y": stimulus_y}
+            , "participant_id": participant_id
+            , "trial_id": current_trial_id
+            , "time": time
+            , "event": "FIXPOINT"
+            , "colour": colour
+            , "stimulus_x": stimulus_x
+            , "stimulus_y": stimulus_y}
 
 def get_events_from_efix_line(participant_id, current_trial_id, line, experiment):
     linesplit = line.split()
@@ -123,6 +123,28 @@ def get_events_from_ssacc_line(participant_id, current_trial_id, line, experimen
             , "event": "SSACC"
             , "eye": linesplit[1]}
 
+def get_events_from_sblink_line(participant_id, current_trial_id, line, experiment):
+    linesplit = line.split()
+    time = int(linesplit[-1])
+    return {"experiment": experiment
+            , "participant_id": participant_id
+            , "trial_id": current_trial_id
+            , "time": time
+            , "event": "SBLINK"
+            , "eye": linesplit[1]}
+
+def get_events_from_eblink_line(participant_id, current_trial_id, line, experiment):
+    linesplit = line.split()
+    time = int(linesplit[-1])
+    return {"experiment": experiment,
+            "participant_id": participant_id,
+            "trial_id": current_trial_id,
+            "event": "EBLINK",
+            "eye": linesplit[1] if len(linesplit) > 1 else np.nan,
+            "start_time": int(linesplit[2]) if len(linesplit) > 2 and linesplit[2].isdigit() else np.nan,
+            "end_time": int(linesplit[3]) if len(linesplit) > 3 and linesplit[3].isdigit() else np.nan,
+            "duration": int(linesplit[4]) if len(linesplit) > 4 and linesplit[4].isdigit() else np.nan} 
+
 def process_line(line, participant_id, current_trial_id, experiment, trial_var_labels):
     # Detect trial start
     if "TRIAL_VAR_LABELS" in line:
@@ -156,6 +178,12 @@ def process_line(line, participant_id, current_trial_id, experiment, trial_var_l
         return [event]
     elif line.startswith("SSACC"):
         event = get_events_from_ssacc_line(participant_id, current_trial_id, line, experiment)
+        return [event]
+    elif line.startswith("SBLINK"):
+        event = get_events_from_sblink_line(participant_id, current_trial_id, line, experiment)
+        return [event]
+    elif line.startswith("EBLINK"):
+        event = get_events_from_eblink_line(participant_id, current_trial_id, line, experiment)
         return [event]
     else:
         return [None]
@@ -200,16 +228,17 @@ def process_asc_file(filename, experiment):
 def process_asc_files(files, experiment):
     event_dfs = []
     for file in tqdm(files):
+        print(file)
         event_dfs.append(process_asc_file(filename=file, experiment=experiment))
     return pd.concat(event_dfs)
 
 def run_asc_preprocessing():
-    file_filters = ["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
-    experiments = ["ANTI_SACCADE" , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+    file_filters = ["SmoothPursuits"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
+    experiments = ["SMOOTH_PURSUITS"]  #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
     for file_filter, experiment in zip(file_filters, experiments):
         asc_files = [f for f in os.listdir(ASC_RAW_EVENTS_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
-        path_save = RAW_DIR / f"{experiment}.pq"
+        path_save = RAW_DIR / f"{experiment}_events.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 

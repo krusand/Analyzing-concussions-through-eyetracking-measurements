@@ -136,7 +136,7 @@ def read_asc_file(file_path, eyes_tracked):
 
 def process_asc_files(asc_files, experiment):
     samples = []
-    df_events = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+    df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
     
     for file_name in tqdm(asc_files):
@@ -171,7 +171,7 @@ def convert_asc_to_pq():
         asc_files = [f for f in os.listdir(ASC_RAW_SAMPLES_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
         
-        path_save = RAW_DIR / f"{experiment}_SAMPLES.pq"
+        path_save = CLEANED_DIR / f"{experiment}_SAMPLES.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 

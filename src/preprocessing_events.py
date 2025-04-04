@@ -1,5 +1,6 @@
 import pandas as pd
 from config import *
+import argparse
 
 experiments = ["ANTI_SACCADE"] #, "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
 
@@ -194,7 +195,7 @@ def preprocess_general(df):
     return df_transformed
 
 def preprocess_experiment(experiment):
-    df = pd.read_parquet(f"{RAW_DIR}/{experiment}_events.pq")
+    df = pd.read_parquet(f"{CLEANED_DIR}/{experiment}_events.pq")
     
     # Preprocessing specific for each event
     if experiment == "ANTI_SACCADE":
@@ -206,14 +207,14 @@ def preprocess_experiment(experiment):
     # Save to parquet
     df_transformed.to_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
 
-def preprocess():
-    
+def main(experiment):
+    # Convert asc files to parquet files
     for experiment in experiments:
         preprocess_experiment(experiment)
 
-def main():
-    # Convert asc files to parquet files
-    preprocess()
-
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Extract events from ASC files.")
+    parser.add_argument("--experiments", nargs='+', required=True, help="List of experiment names")
+    args = parser.parse_args()
+    
+    main(args.experiments)

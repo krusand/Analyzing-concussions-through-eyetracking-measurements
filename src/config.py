@@ -13,6 +13,8 @@ CLEANED_DIR = DATA_DIR / "cleaned"
 PREPROCESSED_DIR = DATA_DIR / "preprocessed"
 FEATURES_DIR = DATA_DIR / "features"
 
+LOG_DIR = PROJ_ROOT / "log"
+
 RED = "255 0 0"
 GREEN = "0 255 0"
 BLUE = "0 0 255"

@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from tqdm import tqdm
 from config import *
+import argparse
 
 numeric_cols = [
         "time", 
@@ -136,7 +137,7 @@ def read_asc_file(file_path, eyes_tracked):
 
 def process_asc_files(asc_files, experiment):
     samples = []
-    df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}.pq")
+    df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
     
     for file_name in tqdm(asc_files):
@@ -147,6 +148,7 @@ def process_asc_files(asc_files, experiment):
         participant_id = file_name.split("_")[1]
         if str(participant_id) in list(df_events["participant_id"]):
             df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
+        # Only process sample data, if participant also exists in event data
         else: continue
         
         if "L" in df_event["eye"].unique() and "R" in df_event["eye"].unique():
@@ -164,20 +166,23 @@ def process_asc_files(asc_files, experiment):
             
     return pd.concat(samples, ignore_index=True)
 
-def convert_asc_to_pq():
-    file_filters = ["anti-saccade"] #, "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
-    experiments = ["ANTI_SACCADE"] # , "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+def main(experiments, file_filters):
+    # Convert asc files to parquet files
     for file_filter, experiment in zip(file_filters, experiments):
         asc_files = [f for f in os.listdir(ASC_RAW_SAMPLES_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
         
-        path_save = RAW_DIR / f"{experiment}_SAMPLES.pq"
+        path_save = CLEANED_DIR / f"{experiment}_SAMPLES.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 
-def main():
-    # Convert asc files to parquet files
-    convert_asc_to_pq()
-
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Extract events from ASC files.")
+    parser.add_argument("--experiments", nargs='+', required=True, help="List of experiment names")
+    parser.add_argument("--file_filters", nargs='+', required=True, help="List of file filters")
+    args = parser.parse_args()
+    
+    if len(args.experiments) != len(args.file_filters):
+        raise ValueError("experiments and file_filters must be the same length")
+
+    main(args.experiments, args.file_filters)

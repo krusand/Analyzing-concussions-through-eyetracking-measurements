@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
+import argparse
 from config import *
 
 def get_events_from_trial_var_labels_line(line):
@@ -232,9 +233,8 @@ def process_asc_files(files, experiment):
         event_dfs.append(process_asc_file(filename=file, experiment=experiment))
     return pd.concat(event_dfs)
 
-def run_asc_preprocessing():
-    file_filters = ["SmoothPursuits"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
-    experiments = ["SMOOTH_PURSUITS"]  #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+def main(experiments, file_filters):
+    # Convert asc files to parquet files
     for file_filter, experiment in zip(file_filters, experiments):
         asc_files = [f for f in os.listdir(ASC_RAW_EVENTS_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
@@ -242,10 +242,14 @@ def run_asc_preprocessing():
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 
-def main():
-    # Convert asc files to parquet files
-    run_asc_preprocessing()
-
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Extract events from ASC files.")
+    parser.add_argument("--experiments", nargs='+', required=True, help="List of experiment names")
+    parser.add_argument("--file_filters", nargs='+', required=True, help="List of file filters")
+    args = parser.parse_args()
+    
+    if len(args.experiments) != len(args.file_filters):
+        raise ValueError("experiments and file_filters must be the same length")
+
+    main(args.experiments, args.file_filters)
 

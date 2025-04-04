@@ -32,17 +32,17 @@ logger = logging.getLogger("eye_tracking_pipeline")
 
 # Define the pipeline steps as ordered scripts to run
 EVENTS_PIPELINE_STEPS = [
-    {
+    { # --> RAW
         "name": "Extracting Events",
         "script": "extracting_events.py",
         "description": "Converts asc files to parquet files"
     },
-    {
+    { # RAW --> CLEANED
         "name": "Cleaning Events",
         "script": "cleaning_events.py",
         "description": "Remove invalid trials and participants"
     },
-    {
+    { # CLEANED --> PREPROCESSED
         "name": "Preprocessing",
         "script": "preprocessing.py",
         "description": "Applies general and experiment-specific preprocessing"
@@ -65,31 +65,16 @@ EVENTS_PIPELINE_STEPS = [
 ]
 
 SAMPLES_PIPELINE_STEPS = [
-    {
+    { # --> CLEANED
         "name": "Extracting Samples",
         "script": "extracting_events.py",
         "description": "Converts asc files to parquet files"
     },
-    {
+    { # CLEANED --> PREPROCESSED
         "name": "Preprocessing",
         "script": "preprocessing_samples.py",
         "description": "Preprocessing of sample data"
-    },
-    # {
-    #     "name": "Feature Extraction",
-    #     "script": "extract_features.py",
-    #     "description": "Extracts relevant features from preprocessed data"
-    # },
-    # {
-    #     "name": "Analysis",
-    #     "script": "analyze_data.py",
-    #     "description": "Performs statistical analysis on extracted features"
-    # },
-    # {
-    #     "name": "Visualization",
-    #     "script": "visualize_results.py",
-    #     "description": "Generates plots and visualizations of results"
-    # }
+    }
 ]
 
 

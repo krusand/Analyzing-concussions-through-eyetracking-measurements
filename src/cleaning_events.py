@@ -1,7 +1,17 @@
 import pandas as pd
 from config import *
+import argparse
 SPECIAL_PARTICIPANTS = ["87", "89", "93", "96", "103", "105", "109", "117", "118", "119", "120", "127", "128", "141"]
 
+def print_info_removed_rows(filtered_df, df):
+    removed_trials = df[["participant_id", "trial_id"]].drop_duplicates()
+    kept_trials = filtered_df[["participant_id", "trial_id"]].drop_duplicates()
+
+    removed_ids = pd.merge(removed_trials, kept_trials, on=["participant_id", "trial_id"], how="outer", indicator=True)
+    removed_ids = removed_ids.query('_merge == "left_only"').drop(columns="_merge")
+
+    if len(removed_ids) > 0:
+        print("Removed rows with [p_id, t_id]:\n", removed_ids.to_numpy())
 
 def exclude_nan_participants(df: pd.DataFrame) -> pd.DataFrame:
     print("Removing na participants")
@@ -16,6 +26,22 @@ def exclude_special_participants(df: pd.DataFrame, special_participants: list[st
     print()
 
     filtered_df = df[~df["participant_id"].isin(special_participants)]
+    return filtered_df
+
+def remove_invalid_fixpoints(df: pd.DataFrame) -> pd.DataFrame:
+    print("Removing invalid fixpoints from evil bastard experiment")
+    experiment = df["experiment"].unique()[0]
+    if experiment == "EVIL_BASTARD":
+        filtered_df = df.loc[~(df["colour"]==BLUE),:]   
+    else:
+        print("Removed 0 rows")
+        return df
+    
+    rows_removed = len(df)-len(filtered_df)
+    
+    print("Removed", rows_removed, "rows\n")
+    if rows_removed > 0:
+        print_info_removed_rows(filtered_df, df)
     return filtered_df
 
 def check_trialid_event(df: pd.DataFrame) -> pd.DataFrame:
@@ -35,8 +61,8 @@ def check_trialid_event(df: pd.DataFrame) -> pd.DataFrame:
     
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
-    print()
+        print_info_removed_rows(filtered_df, df)
+    
     return filtered_df
 
 def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
@@ -52,16 +78,16 @@ def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
             [["participant_id", "trial_id"]]
         )
     else:
-        return None    
+        print("Removed 0 rows")
+        return df    
     
     filtered_df = pd.merge(df, df_check, how='inner', on = ["participant_id", 'trial_id'])
 
-        
     rows_removed = len(df)-len(filtered_df)
     
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
+        print_info_removed_rows(filtered_df, df)
     print()
     return filtered_df
 
@@ -78,7 +104,9 @@ def check_red_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
         [["participant_id", "trial_id"]]
         )    
     else:
-        return None
+        print("Removed 0 rows")
+        return df
+    
     filtered_df = pd.merge(df, df_check, how='inner', on = ["participant_id", 'trial_id'])
 
     
@@ -86,7 +114,7 @@ def check_red_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
     
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
+        print_info_removed_rows(filtered_df, df)
     print()
     return filtered_df
 
@@ -103,7 +131,8 @@ def check_white_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
         [["participant_id", "trial_id"]]
         )
     else:
-        return None
+        print("Removed 0 rows")
+        return df
     
     filtered_df = pd.merge(df, df_check, how='inner', on = ["participant_id", 'trial_id'])
 
@@ -111,7 +140,7 @@ def check_white_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
     
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
+        print_info_removed_rows(filtered_df, df)
     print()
     return filtered_df
 
@@ -132,7 +161,7 @@ def check_trial_var_data(df: pd.DataFrame) -> pd.DataFrame:
     
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
+        print_info_removed_rows(filtered_df, df)
     print()
     return filtered_df
 
@@ -154,7 +183,7 @@ def check_start_event(df: pd.DataFrame) -> pd.DataFrame:
  
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
+        print_info_removed_rows(filtered_df, df)
     print()
     return filtered_df
 
@@ -175,7 +204,7 @@ def check_end_event(df: pd.DataFrame) -> pd.DataFrame:
 
     print("Removed", rows_removed, "rows")
     if rows_removed > 0:
-        print("Removed rows with [p_id, t_id]:\n", pd.unique(pd.concat([filtered_df,df]).drop_duplicates(keep=False)[["participant_id", "trial_id"]].values.ravel("K")))
+        print_info_removed_rows(filtered_df, df)
     print()
     return filtered_df
 
@@ -185,6 +214,7 @@ def clean_events(df:pd.DataFrame) -> pd.DataFrame:
     cleaned_df = (df.
     pipe(exclude_nan_participants).
     pipe(exclude_special_participants, special_participants=SPECIAL_PARTICIPANTS).
+    pipe(remove_invalid_fixpoints).
     pipe(check_trialid_event).
     pipe(check_fixpoint_amount).
     pipe(check_red_fixpoint).
@@ -196,14 +226,19 @@ def clean_events(df:pd.DataFrame) -> pd.DataFrame:
     return cleaned_df
     
 
-def main():
-    df = pd.read_parquet(RAW_DIR / "ANTI_SACCADE.pq")
-    cleaned_df = clean_events(df)
-    cleaned_df.to_parquet(CLEANED_DIR / "anti_saccade_processed.pq")
+def main(experiments):
+    for experiment in experiments:
+        df = pd.read_parquet(RAW_DIR / f"{experiment}_events.pq")
+        cleaned_df = clean_events(df)
+        cleaned_df.to_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Extract events from ASC files.")
+    parser.add_argument("--experiments", nargs='+', required=True, help="List of experiment names")
+    args = parser.parse_args()
+    
+    main(args.experiments)
 
 
 

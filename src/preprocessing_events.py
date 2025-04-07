@@ -66,10 +66,19 @@ def stimulus_onset_time(df):
     
     return pd.concat(results) if results else df.copy()
 
+def fill_values(df):
+    
+    grouped_df = group_df(df)
+    df.loc[:,"colour"] = grouped_df["colour"].ffill()
+    df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
+    df.loc[:,"stimulus_y"] = grouped_df["stimulus_y"].ffill()
+    
+    return df
+
 def stimulus_active(df):
     df = (df
     .assign(
-        stimulus_active = lambda x: np.select([x["colour"] == '255 255 255', x["colour"] == '255 0 0'], [False, True], default=False)
+        stimulus_active = lambda x: np.select([x["colour"] == '255 255 255', x["colour"] == '255 0 0'], [False, True], default=None)
     ))
     return df 
 
@@ -80,10 +89,25 @@ def preprocess_anti_saccade(df):
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
+        .pipe(coalesce_time)
+        .pipe(standardise_time)
+        .pipe(fill_values)
         .pipe(stimulus_active)
     )
     
     return df_trans
+
+########################
+###   EVIL_BASTARD   ###
+########################
+
+
+def preprocess_evil_bastard(df):
+    df_trans = (df
+        .pipe(fill_values)
+    )
+    return df_trans
+
 
 ###################
 ###   General   ###
@@ -109,14 +133,7 @@ def standardise_time(df):
     
     return df
 
-def fill_values(df):
-    
-    grouped_df = group_df(df)
-    df.loc[:,"colour"] = grouped_df["colour"].ffill()
-    df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
-    df.loc[:,"stimulus_y"] = grouped_df["stimulus_y"].ffill()
-    
-    return df
+
 
 def remove_invalid_saccades(df):
     """
@@ -196,7 +213,6 @@ def preprocess_general(df):
         df
         .pipe(coalesce_time)
         .pipe(standardise_time)
-        .pipe(fill_values)
         .pipe(remove_invalid_saccades)
         .pipe(remove_start_events)
     )
@@ -209,6 +225,8 @@ def preprocess_experiment(experiment):
     # Preprocessing specific for each event
     if experiment == "ANTI_SACCADE":
         df = preprocess_anti_saccade(df)
+    elif experiment == "EVIL_BASTARD":
+        df = preprocess_evil_bastard(df)
     
     # General preprocessing 
     df_transformed = preprocess_general(df)

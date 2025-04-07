@@ -1,7 +1,13 @@
 import pandas as pd
 from config import *
 import argparse
+
+import numpy as np
+
+experiments = ["ANTI_SACCADE"] #, "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+
 from tqdm import tqdm
+
 
 ########################
 ###   ANTI_SACCADE   ###
@@ -69,6 +75,22 @@ def stimulus_onset_time(df):
     
     return pd.concat(results) if results else df.copy()
 
+def fill_values(df):
+    
+    grouped_df = group_df(df)
+    df.loc[:,"colour"] = grouped_df["colour"].ffill()
+    df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
+    df.loc[:,"stimulus_y"] = grouped_df["stimulus_y"].ffill()
+    
+    return df
+
+def stimulus_active(df):
+    df = (df
+    .assign(
+        stimulus_active = lambda x: np.select([x["colour"] == '255 255 255', x["colour"] == '255 0 0'], [False, True], default=None)
+    ))
+    return df 
+
 
 def preprocess_anti_saccade(df):
     print("Preprocessing: Antisaccade:")
@@ -77,9 +99,25 @@ def preprocess_anti_saccade(df):
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
+        .pipe(coalesce_time)
+        .pipe(standardise_time)
+        .pipe(fill_values)
+        .pipe(stimulus_active)
     )
     
     return df_trans
+
+########################
+###   EVIL_BASTARD   ###
+########################
+
+
+def preprocess_evil_bastard(df):
+    df_trans = (df
+        .pipe(fill_values)
+    )
+    return df_trans
+
 
 ###################
 ###   General   ###
@@ -112,6 +150,9 @@ def standardise_time(df):
     df.loc[:,"end_time"] = df["end_time"] - grouped_df.time.transform('min')
     
     return df
+
+
+
 
 def fill_values(df):
     print("Fill missing values\n")
@@ -207,7 +248,6 @@ def preprocess_general(df):
         .pipe(remove_trialid_event)
         .pipe(coalesce_time)
         .pipe(standardise_time)
-        .pipe(fill_values)
         .pipe(remove_invalid_saccades)
         .pipe(remove_start_events)
     )
@@ -220,6 +260,8 @@ def preprocess_experiment(experiment):
     # Preprocessing specific for each event
     if experiment == "ANTI_SACCADE":
         df = preprocess_anti_saccade(df)
+    elif experiment == "EVIL_BASTARD":
+        df = preprocess_evil_bastard(df)
     
     # General preprocessing 
     df_transformed = preprocess_general(df)

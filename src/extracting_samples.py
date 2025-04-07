@@ -174,7 +174,7 @@ def main(experiments, file_filters):
         asc_files = [f for f in os.listdir(ASC_RAW_SAMPLES_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
         
-        path_save = CLEANED_DIR / f"{experiment}_SAMPLES.pq"
+        path_save = CLEANED_DIR / f"{experiment}_samples.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 

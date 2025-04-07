@@ -1,15 +1,20 @@
 import pandas as pd
 from config import *
 import argparse
+
 import numpy as np
 
 experiments = ["ANTI_SACCADE"] #, "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+
+from tqdm import tqdm
+
 
 ########################
 ###   ANTI_SACCADE   ###
 ########################
 
 def transform_numeric_columns(df):
+    print("Transform numeric columns\n")
     # Convert specified columns to numeric format, setting invalid entries to NaN
     for col in numeric_columns_anti_saccade:
         df[col] = pd.to_numeric(df[col], errors='coerce')
@@ -17,6 +22,7 @@ def transform_numeric_columns(df):
     return df
 
 def coalesce_time_elapsed(df):
+    print("Coalesce time elapsed and delay\n")
     # Use delay as a fallback for time_elapsed and then drop the delay column
     return (
         df.assign(
@@ -26,6 +32,8 @@ def coalesce_time_elapsed(df):
     )
 
 def fill_values_side(df):
+    print("Fill missing values for side columns\n")
+    
     # Forward and backward fill the 'side' column within each participant/trial group
     return(
         df.sort_values(['participant_id', 'trial_id', 'time'])
@@ -34,6 +42,7 @@ def fill_values_side(df):
     )
     
 def stimulus_onset_time(df):
+    print("Calculate stimulus onset time\n")
     results = []
     
     # Process each group separately
@@ -84,6 +93,7 @@ def stimulus_active(df):
 
 
 def preprocess_anti_saccade(df):
+    print("Preprocessing: Antisaccade:")
     df_trans = (
         df.pipe(transform_numeric_columns)
         .pipe(coalesce_time_elapsed)
@@ -114,7 +124,8 @@ def preprocess_evil_bastard(df):
 ###################
 
 def coalesce_time(df):
-    df.loc[:,"time"] = df[["time", "end_time"]].bfill(axis=1)
+    print("Coalesce time\n")
+    df.loc[:,"time"] = df[["time", "start_time"]].bfill(axis=1)
     
     return df
 
@@ -123,7 +134,14 @@ def group_df(df):
     
     return grouped_df
 
+def remove_trialid_event(df):
+    print("Remove trial id event\n")
+    df = df[df["event"] != "TRIALID"]
+    
+    return df
+
 def standardise_time(df):
+    print("Standardise time\n")
     
     grouped_df = group_df(df)
     
@@ -135,6 +153,17 @@ def standardise_time(df):
 
 
 
+
+def fill_values(df):
+    print("Fill missing values\n")
+    
+    grouped_df = group_df(df)
+    df.loc[:,"colour"] = grouped_df["colour"].ffill()
+    df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
+    df.loc[:,"stimulus_y"] = grouped_df["stimulus_y"].ffill()
+    
+    return df
+
 def remove_invalid_saccades(df):
     """
     Remove ESACC events that have a blink occurring during the saccade.
@@ -142,13 +171,14 @@ def remove_invalid_saccades(df):
     A saccade is considered invalid if there is a SBLINK and EBLINK event
     between the corresponding SSACC and ESACC events.
     """
+    print("Remove invalid saccades\n")
     # Sort the data by participant_id, trial_id, and time
     df_sorted = df.sort_values(["participant_id", "trial_id", "time"])
     
     # Process each participant and trial separately
     results = []
     
-    for (participant, trial), group in df_sorted.groupby(["participant_id", "trial_id"]):
+    for (participant, trial), group in tqdm(df_sorted.groupby(["participant_id", "trial_id"])):
         # Reset index to iterate through rows sequentially
         group = group.reset_index(drop=True)
         rows_to_keep = []
@@ -203,14 +233,19 @@ def remove_start_events(df):
     SFIX and SSACC event does not contain other information than the start time
     which is also included in EFIX and ESACC.
     """
+    print("Remove start events\n")
+    
     mask = (df["event"] == "SFIX") | (df["event"] == "SSACC")
     df_masked = df.loc[~mask,:]
     
     return df_masked
 
 def preprocess_general(df):
+    print("Preprocess: General:")
+    
     df_transformed = (
         df
+        .pipe(remove_trialid_event)
         .pipe(coalesce_time)
         .pipe(standardise_time)
         .pipe(remove_invalid_saccades)
@@ -234,10 +269,11 @@ def preprocess_experiment(experiment):
     # Save to parquet
     df_transformed.to_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
 
-def main(experiment):
+def main(experiments):
     # Convert asc files to parquet files
     for experiment in experiments:
         preprocess_experiment(experiment)
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract events from ASC files.")

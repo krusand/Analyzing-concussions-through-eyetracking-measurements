@@ -11,8 +11,8 @@ import subprocess
 from pathlib import Path
 from config import *
 
-experiments = ["EVIL_BASTARD"] #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
-file_filters = ["Patterns"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
+experiments = ["ANTI_SACCADE"] #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+file_filters = ["anti-saccade"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
 
 # Define the pipeline steps as ordered scripts to run
 EVENTS_PIPELINE_STEPS = [
@@ -34,7 +34,7 @@ EVENTS_PIPELINE_STEPS = [
         }
     },
     { # CLEANED --> PREPROCESSED
-        "name": "Preprocessing",
+        "name": "Preprocessing Events",
         "script": "preprocessing_events.py",
         "description": "Applies general and experiment-specific preprocessing",
         "args": {
@@ -59,13 +59,21 @@ EVENTS_PIPELINE_STEPS = [
 ]
 
 SAMPLES_PIPELINE_STEPS = [
+    # { # --> CLEANED
+    #     "name": "Extracting Samples",
+    #     "script": "extracting_samples.py",
+    #     "description": "Converts asc files to parquet files",
+    #     "args": {
+    #             "experiments" : experiments,
+    #             "file_filters" : file_filters
+    #     }
+    # },
     { # --> CLEANED
-        "name": "Extracting Samples",
-        "script": "extracting_events.py",
-        "description": "Converts asc files to parquet files",
+        "name": "Preprocessing Samples",
+        "script": "preprocessing_samples.py",
+        "description": "Applies general transformations to sample data",
         "args": {
-                "experiments" : experiments,
-                "file_filters" : file_filters
+                "experiments" : experiments
         }
     },
     # { # CLEANED --> PREPROCESSED

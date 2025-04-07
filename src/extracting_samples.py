@@ -54,6 +54,23 @@ colnames ={
             "x_resolution",
             "y_resolution",
             ".",
+            "error_message"],
+    "Standard": ["experiment",
+            "participant_id",
+            "trial_id",
+            "time",
+            "x_left",
+            "y_left",
+            "pupil_size_left",
+            "x_velocity_left",
+            "y_velocity_left",
+            "x_right",
+            "y_right",
+            "pupil_size_right",
+            "x_velocity_right",
+            "y_velocity_right",
+            "x_resolution",
+            "y_resolution",
             "error_message"]
 }
 
@@ -136,37 +153,50 @@ def read_asc_file(file_path, eyes_tracked):
     return df
 
 def process_asc_files(asc_files, experiment):
-    samples = []
+    print("Processing")
     df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
+    
+    path_save = CLEANED_DIR / f"{experiment}_SAMPLES.pq"
+    first_write = True
     
     for file_name in tqdm(asc_files):
         file_path = ASC_RAW_SAMPLES_DIR / file_name
         print(file_path)
         # Information from event
         participant_id = file_name.split("_")[1]
-        if participant_id == '237':
+        
+        # Only process sample data, if participant also exists in event data
+        if str(participant_id) not in df_events["participant_id"].unique():
             continue
         
-        if str(participant_id) in list(df_events["participant_id"]):
-            df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
-        # Only process sample data, if participant also exists in event data
-        else: continue
+        df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
         
-        if "L" in df_event["eye"].unique() and "R" in df_event["eye"].unique():
+        eyes = df_event["eye"].dropna().unique() 
+        if "L" in eyes and "R" in eyes:
             df = read_asc_file(file_path, "LR")
-        elif "L" in df_event["eye"].unique():
+        elif "L" in eyes:
             df = read_asc_file(file_path, "L")
-        elif "R" in df_event["eye"].unique():
+        elif "R" in eyes:
             df = read_asc_file(file_path, "R")
         else: continue
         
         # Add experiment, participant_id and trial_id from event file
         df = add_info_from_event(df, experiment, participant_id, df_event)        
         
-        samples.append(df)
+        # Ensure all standard columns exist in the dataframe
+        for col in colnames["Standard"]:
+            if col not in df.columns:
+                # Add missing columns with NaN values
+                df[col] = pd.NA
+        
+        # Ensure columns are in the same order
+        df = df[colnames["Standard"]]
+        
+        df.to_parquet(path_save, engine="fastparquet", append = not first_write)
+        first_write = False
             
-    return pd.concat(samples, ignore_index=True)
+    return
 
 def main(experiments, file_filters):
     # Convert asc files to parquet files
@@ -177,6 +207,7 @@ def main(experiments, file_filters):
         path_save = CLEANED_DIR / f"{experiment}_samples.pq"
         print(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
+        process_asc_files(asc_files, experiment=experiment)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Extract events from ASC files.")

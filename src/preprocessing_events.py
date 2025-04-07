@@ -1,6 +1,7 @@
 import pandas as pd
 from config import *
 import argparse
+import numpy as np
 
 experiments = ["ANTI_SACCADE"] #, "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
 
@@ -65,6 +66,13 @@ def stimulus_onset_time(df):
     
     return pd.concat(results) if results else df.copy()
 
+def stimulus_active(df):
+    df = (df
+    .assign(
+        stimulus_active = lambda x: np.select([x["colour"] == '255 255 255', x["colour"] == '255 0 0'], [False, True], default=False)
+    ))
+    return df 
+
 
 def preprocess_anti_saccade(df):
     df_trans = (
@@ -72,6 +80,7 @@ def preprocess_anti_saccade(df):
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
+        .pipe(stimulus_active)
     )
     
     return df_trans

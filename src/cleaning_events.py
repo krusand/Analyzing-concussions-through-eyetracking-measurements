@@ -67,19 +67,24 @@ def check_trialid_event(df: pd.DataFrame) -> pd.DataFrame:
 
 def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
     print("Checking if there are the correct amount of fixpoints for the given experiment")
+    
     experiment = df["experiment"].unique()[0]
     if experiment == "ANTI_SACCADE":
-        df_check = (df.
-            query("event == 'FIXPOINT'").
-            groupby(["participant_id", "trial_id", "event"])["event"].
-            count().
-            reset_index(name='n_fixpoints').
-            query("n_fixpoints == 2")
-            [["participant_id", "trial_id"]]
-        )
+        query = "n_fixpoints == 2"
+    elif experiment == "EVIL_BASTARD":
+        query = "n_fixpoints > 0"
     else:
         print("Removed 0 rows")
-        return df    
+        return df   
+    
+    df_check = (df.
+        query("event == 'FIXPOINT'").
+        groupby(["participant_id", "trial_id", "event"])["event"].
+        count().
+        reset_index(name='n_fixpoints').
+        query(query)
+        [["participant_id", "trial_id"]]
+    ) 
     
     filtered_df = pd.merge(df, df_check, how='inner', on = ["participant_id", 'trial_id'])
 

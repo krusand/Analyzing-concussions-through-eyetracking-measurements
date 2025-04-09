@@ -13,14 +13,25 @@ from tqdm import tqdm
 ###   ANTI_SACCADE   ###
 ########################
 
-def transform_numeric_columns(df):
+
+
+def set_column_dtype_anti_saccade(df):
     print("Transform numeric columns\n")
-    # Convert specified columns to numeric format, setting invalid entries to NaN
-    for col in numeric_columns_anti_saccade:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    for col, dtype in type_map["ANTI_SACCADE"].items():
+        if col in df.columns:
+            try:
+                if ("float" in dtype) | ("int" in dtype):
+                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
+                else:
+                    df[col] = df[col].astype(dtype)
+            except Exception as e:
+                print(f"Failed to convert {col} to {dtype}: {e}")
+        else:
+            print(f"Column {col} not found in DataFrame")
         
     return df
-
+                
 def coalesce_time_elapsed(df):
     print("Coalesce time elapsed and delay\n")
     # Use delay as a fallback for time_elapsed and then drop the delay column
@@ -57,13 +68,16 @@ def stimulus_onset_time(df):
                 time_factor = group.loc[group['event'] == 'TRIAL_VAR_DATA', 'time_elapsed'].iloc[0]
                 
                 # Calculate new time for all red entries at once
-                new_time = base_time + 1000 * time_factor
+                new_time = int(base_time + 1000 * time_factor)
                 
                 # Create a copy of the group's time column
                 new_times = group['time'].copy()
                 
                 # Update only the red entries
                 new_times.loc[red_mask] = new_time
+                
+                # Convert dtype
+                new_times = new_times.astype("Int64")
                 
                 # Assign the modified time back to the group
                 group = group.assign(time=new_times)
@@ -85,21 +99,26 @@ def fill_values(df):
     return df
 
 def stimulus_active(df):
-    df = (df
-    .assign(
-        stimulus_active = lambda x: np.select([x["colour"] == '255 255 255', x["colour"] == '255 0 0'], [False, True], default=None)
-    ))
-    return df 
+    print("Set stimulus active")
+    df = df.assign(
+        stimulus_active = df["colour"]
+            .map({
+                "255 0 0": True,
+                "255 255 255": False
+            }
+        )
+    )
+    return df
 
 
 def preprocess_anti_saccade(df):
     print("Preprocessing: Antisaccade:")
     df_trans = (
-        df.pipe(transform_numeric_columns)
+        df.pipe(coalesce_time)
+        .pipe(set_column_dtype_anti_saccade)
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
-        .pipe(coalesce_time)
         .pipe(standardise_time)
         .pipe(fill_values)
         .pipe(stimulus_active)
@@ -111,9 +130,27 @@ def preprocess_anti_saccade(df):
 ###   EVIL_BASTARD   ###
 ########################
 
+def set_column_dtype_evil_bastard(df):
+    print("Transform numeric columns\n")
+    
+    for col, dtype in type_map["EVIL_BASTARD"].items():
+        if col in df.columns:
+            try:
+                if ("float" in dtype) | ("int" in dtype):
+                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
+                else:
+                    df[col] = df[col].astype(dtype)
+            except Exception as e:
+                print(f"Failed to convert {col} to {dtype}: {e}")
+        else:
+            print(f"Column {col} not found in DataFrame")
+        
+    return df
 
 def preprocess_evil_bastard(df):
     df_trans = (df
+        .pipe(coalesce_time)
+        .pipe(set_column_dtype_evil_bastard)
         .pipe(fill_values)
     )
     return df_trans
@@ -150,9 +187,6 @@ def standardise_time(df):
     df.loc[:,"end_time"] = df["end_time"] - grouped_df.time.transform('min')
     
     return df
-
-
-
 
 def fill_values(df):
     print("Fill missing values\n")
@@ -246,7 +280,6 @@ def preprocess_general(df):
     df_transformed = (
         df
         .pipe(remove_trialid_event)
-        .pipe(coalesce_time)
         .pipe(standardise_time)
         .pipe(remove_invalid_saccades)
         .pipe(remove_start_events)
@@ -259,7 +292,7 @@ def preprocess_experiment(experiment):
     
     # Preprocessing specific for each event
     if experiment == "ANTI_SACCADE":
-        df = preprocess_anti_saccade(df)
+        df_transformed = preprocess_anti_saccade(df)
     elif experiment == "EVIL_BASTARD":
         df = preprocess_evil_bastard(df)
     

@@ -182,9 +182,9 @@ def standardise_time(df):
     
     grouped_df = group_df(df)
     
-    df.loc[:,"time"] = df["time"] - grouped_df.time.transform('min')
-    df.loc[:,"start_time"] = df["start_time"] - grouped_df.time.transform('min')
-    df.loc[:,"end_time"] = df["end_time"] - grouped_df.time.transform('min')
+    df.loc[:,"time"] = df["time"] - grouped_df.time.transform('min').astype("float64")
+    df.loc[:,"start_time"] = df["start_time"] - grouped_df.time.transform('min').astype("float64")
+    df.loc[:,"end_time"] = df["end_time"] - grouped_df.time.transform('min').astype("float64")
     
     return df
 

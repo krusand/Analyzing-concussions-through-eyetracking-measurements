@@ -1,5 +1,6 @@
 # Custom .gitignore
 data/*
+VisualisingEyeMovement/Animations/*
 
 .DS_store
 .Rhistory

@@ -59,15 +59,15 @@ EVENTS_PIPELINE_STEPS = [
 ]
 
 SAMPLES_PIPELINE_STEPS = [
-    # { # --> CLEANED
-    #     "name": "Extracting Samples",
-    #     "script": "extracting_samples.py",
-    #     "description": "Converts asc files to parquet files",
-    #     "args": {
-    #             "experiments" : experiments,
-    #             "file_filters" : file_filters
-    #     }
-    # },
+    { # --> CLEANED
+        "name": "Extracting Samples",
+        "script": "extracting_samples.py",
+        "description": "Converts asc files to parquet files",
+        "args": {
+                "experiments" : experiments,
+                "file_filters" : file_filters
+        }
+    },
     { # --> CLEANED
         "name": "Preprocessing Samples",
         "script": "preprocessing_samples.py",

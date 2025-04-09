@@ -74,42 +74,42 @@ colnames ={
             "error_message"]
 }
 
-dtypes = {
-    "LR": {"time": int,
-            "x_left": float,
-            "y_left": float,
-            "pupil_size_left": float,
-            "x_right": float,
-            "y_right": float,
-            "pupil_size_right": float,
-            "x_velocity_left": float,
-            "y_velocity_left": float,
-            "x_velocity_right": float,
-            "y_velocity_right": float,
-            "x_resolution": float,
-            "y_resolution": float,
-            ".": str,
-            "error_message": str},
-    "R": {"time": int,
-            "x_right": float,
-            "y_right": float,
-            "pupil_size_right": float,
-            "x_velocity_right": float,
-            "y_velocity_right": float,
-            "x_resolution": float,
-            "y_resolution": float,
-            ".": str,
-            "error_message": str},
-    "L": {"time": int,
-            "x_left": float,
-            "y_left": float,
-            "pupil_size_left": float,
-            "x_velocity_left": float,
-            "y_velocity_left": float,
-            "x_resolution": float,
-            "y_resolution": float,
-            ".": str,
-            "error_message": str}
+type_map = {
+    "LR": {"time": "Int64",
+            "x_left": "float64",
+            "y_left": "float64",
+            "pupil_size_left": "float64",
+            "x_right": "float64",
+            "y_right": "float64",
+            "pupil_size_right": "float64",
+            "x_velocity_left": "float64",
+            "y_velocity_left": "float64",
+            "x_velocity_right": "float64",
+            "y_velocity_right": "float64",
+            "x_resolution": "float64",
+            "y_resolution": "float64",
+            ".": "string",
+            "error_message": "string"},
+    "R": {"time": "Int64",
+            "x_right": "float64",
+            "y_right": "float64",
+            "pupil_size_right": "float64",
+            "x_velocity_right": "float64",
+            "y_velocity_right": "float64",
+            "x_resolution": "float64",
+            "y_resolution": "float64",
+            ".": "string",
+            "error_message": "string"},
+    "L": {"time": "Int64",
+            "x_left": "float64",
+            "y_left": "float64",
+            "pupil_size_left": "float64",
+            "x_velocity_left": "float64",
+            "y_velocity_left": "float64",
+            "x_resolution": "float64",
+            "y_resolution": "float64",
+            ".": "string",
+            "error_message": "string"}
 }
 
 na_values ={
@@ -117,6 +117,23 @@ na_values ={
     "R": {col: "." for col in list(set(colnames["R"]) & set(numeric_cols))},
     "L": {col: "." for col in list(set(colnames["L"]) & set(numeric_cols))}
 }
+
+def set_column_dtype(df):
+    print("Transform numeric columns\n")
+    
+    for col, dtype in type_map_samples.items():
+        if col in df.columns:
+            try:
+                if ("float" in dtype) | ("int" in dtype):
+                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
+                else:
+                    df[col] = df[col].astype(dtype)
+            except Exception as e:
+                print(f"Failed to convert {col} to {dtype}: {e}")
+        else:
+            print(f"Column {col} not found in DataFrame")
+        
+    return df
 
 def add_info_from_event(df, experiment, participant_id, df_event):
     # Insert trial_id
@@ -143,7 +160,7 @@ def read_asc_file(file_path, eyes_tracked):
                     delimiter="\t", 
                     skipinitialspace=True,
                     na_values=na_values[eyes_tracked],
-                    dtype = dtypes[eyes_tracked])
+                    dtype = type_map[eyes_tracked])
     df = df.drop(".", axis=1)  
               
     for col in df.columns:
@@ -157,7 +174,7 @@ def process_asc_files(asc_files, experiment):
     df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
     
-    path_save = CLEANED_DIR / f"{experiment}_SAMPLES.pq"
+    path_save = CLEANED_DIR / f"{experiment}_samples.pq"
     first_write = True
     
     for file_name in tqdm(asc_files):
@@ -192,6 +209,9 @@ def process_asc_files(asc_files, experiment):
         
         # Ensure columns are in the same order
         df = df[colnames["Standard"]]
+        
+        # Set data-types
+        df = set_column_dtype(df)
         
         df.to_parquet(path_save, engine="fastparquet", append = not first_write)
         first_write = False

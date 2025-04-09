@@ -11,8 +11,8 @@ import subprocess
 from pathlib import Path
 from config import *
 
-experiments = ["EVIL_BASTARD"] #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
-file_filters = ["Patterns"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
+experiments = ["ANTI_SACCADE"] #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+file_filters = ["anti-saccade"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
 
 # Define the pipeline steps as ordered scripts to run
 EVENTS_PIPELINE_STEPS = [

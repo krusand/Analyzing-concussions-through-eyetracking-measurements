@@ -292,7 +292,7 @@ def preprocess_experiment(experiment):
     
     # Preprocessing specific for each event
     if experiment == "ANTI_SACCADE":
-        df_transformed = preprocess_anti_saccade(df)
+        df = preprocess_anti_saccade(df)
     elif experiment == "EVIL_BASTARD":
         df = preprocess_evil_bastard(df)
     

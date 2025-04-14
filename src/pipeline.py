@@ -11,8 +11,8 @@ import subprocess
 from pathlib import Path
 from config import *
 
-experiments = ["ANTI_SACCADE"] #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
-file_filters = ["anti-saccade"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
+experiments = ["REACTION"] #["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+file_filters = ["Reaction"] #["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
 
 # Define the pipeline steps as ordered scripts to run
 EVENTS_PIPELINE_STEPS = [
@@ -100,17 +100,17 @@ def run_script(script_path, args=None):
             check=True,
             text=True
         )
-        print(f"Finished: {script_path}")
+        logging.info(f"Finished: {script_path}")
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"Error running {script_path}: {e}")
+        logging.error(f"Error running {script_path}: {e}")
         return False
 
 def run_pipeline():
     """Run the complete data processing pipeline"""
     
-    print("Starting pipeline")
+    logging.info("Starting pipeline")
     
     # Get the directory where the pipeline script is located
     pipeline_dir = Path(__file__).parent.absolute()
@@ -118,20 +118,20 @@ def run_pipeline():
     # Run each step in sequence
     for step in EVENTS_PIPELINE_STEPS:
         script_path = pipeline_dir / step["script"]
-        print(f"\nStep: {step['name']}")
-        print(f"Description: {step['description']}")
+        logging.info(f"Step: {step['name']}")
+        logging.info(f"Description: {step['description']}")
         if not script_path.exists():
-            print(f"Script not found: {script_path}")
+            logging.warning(f"Script not found: {script_path}")
             continue
         run_script(script_path, step.get("args"))
     
     # Run each step in sequence
     for step in SAMPLES_PIPELINE_STEPS:
         script_path = pipeline_dir / step["script"]
-        print(f"\nStep: {step['name']}")
-        print(f"Description: {step['description']}")
+        logging.info(f"Step: {step['name']}")
+        logging.info(f"Description: {step['description']}")
         if not script_path.exists():
-            print(f"Script not found: {script_path}")
+            logging.warning(f"Script not found: {script_path}")
             continue
         run_script(script_path, step.get("args"))
 

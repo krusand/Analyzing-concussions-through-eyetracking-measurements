@@ -23,7 +23,7 @@ def preprocess_general(df):
 
 def preprocess_sample(experiment):
     """Process file by participant/trial groups to reduce memory usage"""
-    print(f"Starting preprocessing for {experiment}:")
+    logging.info(f"Starting preprocessing for {experiment}:")
     
     first_write = True
     
@@ -37,7 +37,7 @@ def preprocess_sample(experiment):
         
     # Process each group
     for i, (participant_id, trial_ids) in tqdm(enumerate(participant_groups.items()), total=len(participant_groups)):
-        print(f"Processing participant {participant_id}")
+        logging.info(f"Processing participant {participant_id}")
         
         # Read data for participant
         filters = [

@@ -32,7 +32,7 @@ anti_saccade_right <- anti_saccade_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(colour, stimulus_x, stimulus_y), .direction = "down") %>% 
@@ -78,7 +78,7 @@ anti_saccade_left <- anti_saccade_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(colour, stimulus_x, stimulus_y), .direction = "down") %>% 
@@ -164,7 +164,7 @@ ggplotly(p, tooltip = c("label", "colour_plotting"))
 special_participants <- c(87, 89, 93, 96, 103, 105, 109, 117, 118, 119, 120, 127, 128, 141)
 
 
-reactions_raw <- read_parquet("data/processed/REACTION.pq") %>% 
+reactions_raw <- read_parquet("data/raw/REACTION_events.pq") %>% 
   filter(!(participant_id %in% special_participants)) %>% 
   mutate(stimulus_x = coalesce(stimulus_x, as.numeric(pos_x)),
          stimulus_y = coalesce(stimulus_y, as.numeric(pos_y))) %>% 
@@ -178,7 +178,7 @@ reactions_right <- reactions_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(colour, stimulus_x, stimulus_y), .direction = "down") %>% 
@@ -221,7 +221,7 @@ reactions_left <- reactions_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(colour, stimulus_x, stimulus_y), .direction = "down") %>% 
@@ -268,8 +268,8 @@ reactions <- reactions_left %>%
 ## Visualising ----
 
 
-p_id <- 237
-t_id <- 1
+p_id <- 395
+t_id <- 0
 
 reactions_plotting_data <- reactions %>% 
   filter(participant_id == p_id , trial_id == t_id) %>% 
@@ -294,9 +294,20 @@ p <- ggplot(data = reactions_plotting_data,
                 label = event_nr)) + 
   geom_point() +
   geom_path() +
-  facet_wrap(~eye)
+  facet_wrap(~eye) + 
+  xlim(0,1920) +
+  ylim(0,1080)
 
 ggplotly(p, tooltip = c("label", "colour_plotting"))
+
+
+
+reactions %>% 
+  filter(event == 'FIXPOINT') %>% 
+  filter(between(stimulus_x, 0, 1920) & between(stimulus_y, 0, 1080)) %>% 
+ggplot(aes(x=stimulus_x, y=stimulus_y, colour=stimulus_colour)) +
+  geom_point()
+
 
 # King Devick ----
 
@@ -309,7 +320,7 @@ king_devick_right <- king_devick_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(time_elapsed, .direction = "downup") %>% 
@@ -341,7 +352,7 @@ king_devick_left <- king_devick_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(time_elapsed, .direction = "downup") %>% 
@@ -414,7 +425,7 @@ fitts_law_right <- fitts_law_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(distance, target_width), .direction = "downup") %>% 
@@ -450,7 +461,7 @@ fitts_law_left <- fitts_law_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(distance, target_width), .direction = "downup") %>% 
@@ -530,7 +541,7 @@ smooth_pursuits_right <- smooth_pursuits_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(shape, speed), .direction = "downup") %>% 
@@ -568,7 +579,7 @@ smooth_pursuits_left <- smooth_pursuits_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(shape, speed), .direction = "downup") %>% 
@@ -646,7 +657,7 @@ shapes_right <- shapes_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(shape), .direction = "downup") %>% 
@@ -683,7 +694,7 @@ shapes_left <- shapes_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(shape), .direction = "downup") %>% 
@@ -761,7 +772,7 @@ evil_bastard_right <- evil_bastard_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "R")) %>% 
   mutate(m_eye = "R") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(angle, speed), .direction = "downup") %>% 
@@ -799,7 +810,7 @@ evil_bastard_left <- evil_bastard_raw %>%
   filter(!(event %in% c("SSACC", "SFIX"))) %>% 
   filter(eye %in% c(NA, "L")) %>% 
   mutate(m_eye = "L") %>% 
-  mutate(m_time = coalesce(time, end_time)) %>% 
+  mutate(m_time = coalesce(time, start_time)) %>% 
   arrange(participant_id, trial_id, m_time) %>% 
   group_by(participant_id, trial_id) %>% 
   fill(c(angle, speed), .direction = "downup") %>% 

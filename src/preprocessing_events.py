@@ -16,7 +16,7 @@ from tqdm import tqdm
 ###   ANTI_SACCADE   ###
 ########################
 
-def coalesce_time_elapsed(df):
+def coalesce_time_elapsed(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Coalesce time elapsed and delay")
     # Use delay as a fallback for time_elapsed and then drop the delay column
     return (
@@ -26,7 +26,7 @@ def coalesce_time_elapsed(df):
         .drop(columns=['delay'])
     )
 
-def fill_values_side(df):
+def fill_values_side(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Fill missing values for side columns")
     
     # Forward and backward fill the 'side' column within each participant/trial group
@@ -36,7 +36,7 @@ def fill_values_side(df):
         .apply(lambda g: g.assign(side=g['side'].ffill().bfill()))
     )
     
-def stimulus_onset_time(df):
+def stimulus_onset_time(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Calculate stimulus onset time")
     results = []
     
@@ -73,7 +73,7 @@ def stimulus_onset_time(df):
     
     return pd.concat(results) if results else df.copy()
 
-def fill_values(df):
+def fill_values(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Fill values")
     grouped_df = group_df(df)
     df.loc[:,"colour"] = grouped_df["colour"].ffill()
@@ -82,7 +82,7 @@ def fill_values(df):
     
     return df
 
-def stimulus_active(df):
+def stimulus_active(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Set stimulus active")
     df = df.assign(
         stimulus_active = df["colour"]
@@ -95,7 +95,7 @@ def stimulus_active(df):
     return df
 
 
-def preprocess_anti_saccade(df, experiment):
+def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing anti_saccade")
     df_trans = (df
         .pipe(set_column_dtype, experiment)
@@ -115,11 +115,36 @@ def preprocess_anti_saccade(df, experiment):
 ########################
 
 
-def preprocess_evil_bastard(df, experiment):
+def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     logging.info("Preprocessing evil bastard")
     df_trans = (df
         .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
+        .pipe(fill_values)
+    )
+    return df_trans
+
+
+
+###############################
+###   REACTION/PROSACCADE   ###
+###############################
+
+def coalesce_stimulus_coordinates(df: pd.DataFrame) -> pd.DataFrame:
+    logging.info("Coalesce stimulus coordinates")
+    df.loc[:,"stimulus_x"] = df[["pos_x", "stimulus_x"]].bfill(axis=1)
+    df.loc[:,"stimulus_y"] = df[["pos_y", "stimulus_y"]].bfill(axis=1)
+    df = df.drop(["pos_x", "pos_y"], axis=1)
+    return df
+
+
+
+def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
+    logging.info("Preprocessing reaction")
+    df_trans = (df
+        .pipe(set_column_dtype, experiment)
+        .pipe(coalesce_time)
+        .pipe(coalesce_stimulus_coordinates)
         .pipe(fill_values)
     )
     return df_trans
@@ -131,7 +156,7 @@ def preprocess_evil_bastard(df, experiment):
 
 
 
-def set_column_dtype(df, experiment):
+def set_column_dtype(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     logging.info("Starting dtype transformation for ANTI_SACCADE")
     
     for col, dtype in type_map[experiment].items():
@@ -150,24 +175,24 @@ def set_column_dtype(df, experiment):
     return df
                 
 
-def coalesce_time(df):
+def coalesce_time(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Coalesce time")
     df.loc[:,"time"] = df[["time", "start_time"]].bfill(axis=1)
     
     return df
 
-def group_df(df):
+def group_df(df: pd.DataFrame) -> pd.DataFrame:
     grouped_df = df.sort_values(["participant_id", "trial_id", "time"]).groupby(["participant_id", "trial_id"])#[df.columns]
     
     return grouped_df
 
-def remove_trialid_event(df):
+def remove_trialid_event(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Remove trial id event")
     df = df[df["event"] != "TRIALID"]
     
     return df
 
-def standardise_time(df):
+def standardise_time(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Standardise time")
     
     grouped_df = group_df(df)
@@ -178,7 +203,7 @@ def standardise_time(df):
     
     return df
 
-def fill_values(df):
+def fill_values(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Fill missing values")
     
     grouped_df = group_df(df)
@@ -188,7 +213,7 @@ def fill_values(df):
     
     return df
 
-def remove_invalid_saccades(df):
+def remove_invalid_saccades(df: pd.DataFrame) -> pd.DataFrame:
     """
     Remove ESACC events that have a blink occurring during the saccade.
     
@@ -250,7 +275,7 @@ def remove_invalid_saccades(df):
     # Combine all results
     return pd.concat(results) if results else pd.DataFrame(columns=df.columns)
 
-def remove_start_events(df):
+def remove_start_events(df: pd.DataFrame) -> pd.DataFrame:
     """
     Remove SFIX and SSACC events.
     
@@ -266,7 +291,7 @@ def remove_start_events(df):
 
 ### RUN
 
-def preprocess_general(df):
+def preprocess_general(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Performing general preprocessing")
     
     df_transformed = (df
@@ -278,12 +303,13 @@ def preprocess_general(df):
     
     return df_transformed
 
-def preprocess_experiment(experiment):
+def preprocess_experiment(experiment:str) -> None:
     df = pd.read_parquet(f"{CLEANED_DIR}/{experiment}_events.pq")
     
     preprocessing_funcs = {
-    "ANTI_SACCADE": preprocess_anti_saccade,
-    "EVIL_BASTARD": preprocess_evil_bastard,
+        "ANTI_SACCADE": preprocess_anti_saccade,
+        "EVIL_BASTARD": preprocess_evil_bastard,
+        "REACTION": preprocess_reaction
     }
 
     df = preprocessing_funcs.get(experiment, lambda x: x)(df, experiment)
@@ -294,7 +320,7 @@ def preprocess_experiment(experiment):
     # Save to parquet
     df_transformed.to_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
 
-def main(experiments):
+def main(experiments: list[str]):
     # Convert asc files to parquet files
     for experiment in experiments:
         preprocess_experiment(experiment)

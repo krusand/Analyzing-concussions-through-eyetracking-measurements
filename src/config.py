@@ -86,7 +86,32 @@ type_map = {
         'colour' : "string", 
         'stimulus_x' : "float64",
         'stimulus_y' : "float64"
-    }
+    },
+    "REACTION" : {
+        'experiment' : "string",
+        'participant_id' : "int64", 
+        'trial_id' : "int64", 
+        'time' : "int64", 
+        'event' : "string",
+        'eye' : "string",
+        'colour' : "string",
+        'stimulus_x' : "float64", 
+        'stimulus_y' : "float64", 
+        'pos_x': 'float64',
+        'pos_y': 'float64',
+        'start_time' : "float64", 
+        'end_time' : "float64", 
+        'duration' : "float64", 
+        'x' : "float64", 
+        'y' : "float64", 
+        'avg_pupil_size' : "float64", 
+        'start_x' : "float64", 
+        'start_y' : "float64", 
+        'end_x' : "float64", 
+        'end_y' : "float64", 
+        'amplitude' : "float64", 
+        'peak_velocity' : "float64", 
+        'delay' : "float64"},
 }
 
 type_map_samples = {

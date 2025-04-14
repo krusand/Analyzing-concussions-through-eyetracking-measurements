@@ -191,7 +191,7 @@ def process_line(line, participant_id, current_trial_id, experiment, trial_var_l
 
 
 def process_asc_file(filename, experiment):
-    print(f"Processing {filename}")
+    logging.info(f"Processing {filename}")
 
     filepath = ASC_RAW_EVENTS_DIR / filename
     participant_id = filename.split("_")[1]
@@ -222,14 +222,14 @@ def process_asc_file(filename, experiment):
 
     events = pd.DataFrame(events)
     
-    print("Finished initial event loading")
+    logging.info("Finished initial event loading")
 
     return events.sort_values(by = ["participant_id", "trial_id", "time"]).reset_index(drop=True)
 
 def process_asc_files(files, experiment):
     event_dfs = []
     for file in tqdm(files):
-        print(file)
+        logging.info(file)
         event_dfs.append(process_asc_file(filename=file, experiment=experiment))
     return pd.concat(event_dfs)
 
@@ -239,7 +239,7 @@ def main(experiments, file_filters):
         asc_files = [f for f in os.listdir(ASC_RAW_EVENTS_DIR) if f.endswith('.asc') and f.startswith(f"{file_filter}")]
         df = process_asc_files(asc_files, experiment=experiment)
         path_save = RAW_DIR / f"{experiment}_events.pq"
-        print(f"Saving to {path_save}")
+        logging.info(f"Saving to {path_save}")
         df.to_parquet(path_save, index=False)
 
 if __name__ == '__main__':

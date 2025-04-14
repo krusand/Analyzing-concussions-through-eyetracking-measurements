@@ -28,10 +28,24 @@ def exclude_special_participants(df: pd.DataFrame, special_participants: list[st
     return filtered_df
 
 def remove_invalid_fixpoints(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Removing invalid fixpoints from evil bastard experiment")
+    logging.info("Removing invalid fixpoints")
     experiment = df["experiment"].unique()[0]
-    if experiment == "EVIL_BASTARD":
-        filtered_df = df.loc[~(df["colour"]==BLUE),:]   
+    if experiment == 'ANTI_SACCADE':
+        df[['stimulus_x', 'stimulus_y']] = df[['stimulus_x', 'stimulus_y']].apply(pd.to_numeric, errors='coerce')
+        filtered_df = df[
+             (df['stimulus_x'].between(0, 1920)) | (df['stimulus_x'].isna()) &
+             (df['stimulus_y'].between(0, 1080)) | (df['stimulus_y'].isna())
+        ]
+    elif experiment == "EVIL_BASTARD":
+        filtered_df = df.loc[~(df["colour"]==BLUE),:]
+    elif experiment == "REACTION":
+        df[['pos_x', 'pos_y', 'stimulus_x', 'stimulus_y']] = df[['pos_x', 'pos_y', 'stimulus_x', 'stimulus_y']].apply(pd.to_numeric, errors='coerce')
+        filtered_df = df[
+             (df['pos_x'].between(0, 1920)) | (df['pos_x'].isna()) &
+             (df['stimulus_x'].between(0, 1920)) | (df['stimulus_x'].isna()) &
+             (df['pos_y'].between(0, 1080)) | (df['pos_y'].isna()) &
+             (df['stimulus_y'].between(0, 1080)) | (df['stimulus_y'].isna())
+        ]
     else:
         logging.info("Removed 0 rows")
         return df
@@ -72,6 +86,8 @@ def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
         query = "n_fixpoints == 2"
     elif experiment == "EVIL_BASTARD":
         query = "n_fixpoints > 0"
+    elif experiment == "REACTION":
+        query = "n_fixpoints == 2"
     else:
         logging.info("Removed 0 rows")
         return df   
@@ -205,6 +221,8 @@ def check_end_event(df: pd.DataFrame) -> pd.DataFrame:
     if rows_removed > 0:
         print_info_removed_rows(filtered_df, df)
     return filtered_df
+
+
 
 
 def clean_events(df:pd.DataFrame) -> pd.DataFrame:

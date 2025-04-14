@@ -119,7 +119,7 @@ na_values ={
 }
 
 def set_column_dtype(df):
-    print("Transform numeric columns\n")
+    logging.info("Transform numeric columns")
     
     for col, dtype in type_map_samples.items():
         if col in df.columns:
@@ -129,9 +129,9 @@ def set_column_dtype(df):
                 else:
                     df[col] = df[col].astype(dtype)
             except Exception as e:
-                print(f"Failed to convert {col} to {dtype}: {e}")
+                logging.error(f"Failed to convert {col} to {dtype}: {e}")
         else:
-            print(f"Column {col} not found in DataFrame")
+            logging.warning(f"Column {col} not found in DataFrame")
         
     return df
 
@@ -170,21 +170,29 @@ def read_asc_file(file_path, eyes_tracked):
     return df
 
 def process_asc_files(asc_files, experiment):
-    print("Processing")
+    logging.info("Processing")
     df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
-    
+
+    df_event_raw = pd.read_parquet(RAW_DIR / "REACTION_events.pq")
+
+
     path_save = CLEANED_DIR / f"{experiment}_samples.pq"
     first_write = True
     
     for file_name in tqdm(asc_files):
         file_path = ASC_RAW_SAMPLES_DIR / file_name
-        print(file_path)
+        logging.info(file_path)
         # Information from event
         participant_id = file_name.split("_")[1]
         
         # Only process sample data, if participant also exists in event data
         if str(participant_id) not in df_events["participant_id"].unique():
+            continue
+        
+        # TODO: We need to think about how to do this in a proper way:
+        # Currently this compares the number of trials filtered away. If any are filtered away, we continue, because otherwise the samples will not work
+        if len(df_events[df_events["participant_id"] == participant_id]["trial_id"].unique()) != len(df_event_raw[df_event_raw["participant_id"] == participant_id]["trial_id"].unique()):
             continue
         
         df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
@@ -212,6 +220,10 @@ def process_asc_files(asc_files, experiment):
         
         # Set data-types
         df = set_column_dtype(df)
+        
+        logging.info("Ready to save")
+        
+        print(df["trial_id"].unique())
         
         df.to_parquet(path_save, engine="fastparquet", append = not first_write)
         first_write = False

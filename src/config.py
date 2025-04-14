@@ -116,9 +116,9 @@ type_map = {
 
 type_map_samples = {
     "experiment" : "string",
-    "participant_id" : "int64",
-    "trial_id" : "int64",
-    "time" : "int64",
+    "participant_id" : "Int64",
+    "trial_id" : "Int64",
+    "time" : "Int64",
     "x_left" : "float64",
     "y_left" : "float64",
     "pupil_size_left" : "float64",

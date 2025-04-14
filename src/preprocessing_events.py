@@ -299,6 +299,9 @@ def preprocess_general(df: pd.DataFrame) -> pd.DataFrame:
         .pipe(standardise_time)
         .pipe(remove_invalid_saccades)
         .pipe(remove_start_events)
+        
+        # This should be last
+        .reset_index(drop=True)
     )
     
     return df_transformed

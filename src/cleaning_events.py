@@ -4,6 +4,7 @@ import argparse
 SPECIAL_PARTICIPANTS = ["87", "89", "93", "96", "103", "105", "109", "117", "118", "119", "120", "127", "128", "141"]
 
 def print_info_removed_rows(filtered_df, df):
+    logging.info("Removed the following rows [p_id, t_id]")
     removed_trials = df[["participant_id", "trial_id"]].drop_duplicates()
     kept_trials = filtered_df[["participant_id", "trial_id"]].drop_duplicates()
 
@@ -11,7 +12,7 @@ def print_info_removed_rows(filtered_df, df):
     removed_ids = removed_ids.query('_merge == "left_only"').drop(columns="_merge")
 
     if len(removed_ids) > 0:
-        print("Removed rows with [p_id, t_id]:\n", removed_ids.to_numpy())
+        print(removed_ids.to_numpy())
 
 def exclude_nan_participants(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Removing na participants")

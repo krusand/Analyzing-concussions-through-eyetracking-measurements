@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 
 PROJ_ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,6 +21,12 @@ GREEN = "0 255 0"
 BLUE = "0 0 255"
 WHITE = "255 255 255"
 
+# define logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s"
+)
 
 # Prperocessing
 numeric_columns_anti_saccade = ['participant_id', 'trial_id', 'time', 'stimulus_x', 'stimulus_y', 'start_time', 'end_time', 

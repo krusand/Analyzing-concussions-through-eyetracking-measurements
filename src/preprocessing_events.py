@@ -1,22 +1,23 @@
 import pandas as pd
 from config import *
 import argparse
-
+import logging
 import numpy as np
-
-experiments = ["ANTI_SACCADE"] #, "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
-
 from tqdm import tqdm
+
+
+# experiments = ["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
+# Setup
+
+
 
 
 ########################
 ###   ANTI_SACCADE   ###
 ########################
 
-
-
 def set_column_dtype_anti_saccade(df):
-    print("Transform numeric columns\n")
+    logging.info("Starting dtype transformation for ANTI_SACCADE")
     
     for col, dtype in type_map["ANTI_SACCADE"].items():
         if col in df.columns:
@@ -26,14 +27,15 @@ def set_column_dtype_anti_saccade(df):
                 else:
                     df[col] = df[col].astype(dtype)
             except Exception as e:
-                print(f"Failed to convert {col} to {dtype}: {e}")
+                logging.error(f"Failed to convert '{col}' to {dtype}: {e}")
         else:
-            print(f"Column {col} not found in DataFrame")
-        
+            logging.warning(f"Column '{col}' not found in DataFrame")
+    logging.info("Finished dtype transformation for ANTI_SACCADE")
+
     return df
                 
 def coalesce_time_elapsed(df):
-    print("Coalesce time elapsed and delay\n")
+    logging.info("Coalesce time elapsed and delay")
     # Use delay as a fallback for time_elapsed and then drop the delay column
     return (
         df.assign(
@@ -43,7 +45,7 @@ def coalesce_time_elapsed(df):
     )
 
 def fill_values_side(df):
-    print("Fill missing values for side columns\n")
+    logging.info("Fill missing values for side columns")
     
     # Forward and backward fill the 'side' column within each participant/trial group
     return(
@@ -53,7 +55,7 @@ def fill_values_side(df):
     )
     
 def stimulus_onset_time(df):
-    print("Calculate stimulus onset time\n")
+    logging.info("Calculate stimulus onset time")
     results = []
     
     # Process each group separately
@@ -90,7 +92,7 @@ def stimulus_onset_time(df):
     return pd.concat(results) if results else df.copy()
 
 def fill_values(df):
-    
+    logging.info("Fill values")
     grouped_df = group_df(df)
     df.loc[:,"colour"] = grouped_df["colour"].ffill()
     df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
@@ -99,7 +101,7 @@ def fill_values(df):
     return df
 
 def stimulus_active(df):
-    print("Set stimulus active")
+    logging.info("Set stimulus active")
     df = df.assign(
         stimulus_active = df["colour"]
             .map({
@@ -112,7 +114,7 @@ def stimulus_active(df):
 
 
 def preprocess_anti_saccade(df):
-    print("Preprocessing: Antisaccade:")
+    logging.info("Preprocessing anti_saccade")
     df_trans = (
         df.pipe(coalesce_time)
         .pipe(set_column_dtype_anti_saccade)
@@ -131,7 +133,7 @@ def preprocess_anti_saccade(df):
 ########################
 
 def set_column_dtype_evil_bastard(df):
-    print("Transform numeric columns\n")
+    logging.info("Transform numeric columns")
     
     for col, dtype in type_map["EVIL_BASTARD"].items():
         if col in df.columns:
@@ -141,13 +143,14 @@ def set_column_dtype_evil_bastard(df):
                 else:
                     df[col] = df[col].astype(dtype)
             except Exception as e:
-                print(f"Failed to convert {col} to {dtype}: {e}")
+                logging.error(f"Failed to convert {col} to {dtype}: {e}")
         else:
-            print(f"Column {col} not found in DataFrame")
+            logging.warning(f"Column {col} not found in DataFrame")
         
     return df
 
 def preprocess_evil_bastard(df):
+    logging.info("Preprocessing evil bastard")
     df_trans = (df
         .pipe(coalesce_time)
         .pipe(set_column_dtype_evil_bastard)
@@ -161,7 +164,7 @@ def preprocess_evil_bastard(df):
 ###################
 
 def coalesce_time(df):
-    print("Coalesce time\n")
+    logging.info("Coalesce time")
     df.loc[:,"time"] = df[["time", "start_time"]].bfill(axis=1)
     
     return df
@@ -172,13 +175,13 @@ def group_df(df):
     return grouped_df
 
 def remove_trialid_event(df):
-    print("Remove trial id event\n")
+    logging.info("Remove trial id event")
     df = df[df["event"] != "TRIALID"]
     
     return df
 
 def standardise_time(df):
-    print("Standardise time\n")
+    logging.info("Standardise time")
     
     grouped_df = group_df(df)
     
@@ -189,7 +192,7 @@ def standardise_time(df):
     return df
 
 def fill_values(df):
-    print("Fill missing values\n")
+    logging.info("Fill missing values")
     
     grouped_df = group_df(df)
     df.loc[:,"colour"] = grouped_df["colour"].ffill()
@@ -205,7 +208,7 @@ def remove_invalid_saccades(df):
     A saccade is considered invalid if there is a SBLINK and EBLINK event
     between the corresponding SSACC and ESACC events.
     """
-    print("Remove invalid saccades\n")
+    logging.info("Remove invalid saccades")
     # Sort the data by participant_id, trial_id, and time
     df_sorted = df.sort_values(["participant_id", "trial_id", "time"])
     
@@ -267,15 +270,17 @@ def remove_start_events(df):
     SFIX and SSACC event does not contain other information than the start time
     which is also included in EFIX and ESACC.
     """
-    print("Remove start events\n")
+    logging.info("Remove start events")
     
     mask = (df["event"] == "SFIX") | (df["event"] == "SSACC")
     df_masked = df.loc[~mask,:]
     
     return df_masked
 
+### RUN
+
 def preprocess_general(df):
-    print("Preprocess: General:")
+    logging.info("Performing general preprocessing")
     
     df_transformed = (
         df
@@ -290,11 +295,12 @@ def preprocess_general(df):
 def preprocess_experiment(experiment):
     df = pd.read_parquet(f"{CLEANED_DIR}/{experiment}_events.pq")
     
-    # Preprocessing specific for each event
-    if experiment == "ANTI_SACCADE":
-        df = preprocess_anti_saccade(df)
-    elif experiment == "EVIL_BASTARD":
-        df = preprocess_evil_bastard(df)
+    preprocessing_funcs = {
+    "ANTI_SACCADE": preprocess_anti_saccade,
+    "EVIL_BASTARD": preprocess_evil_bastard,
+    }
+
+    df = preprocessing_funcs.get(experiment, lambda x: x)(df)
     
     # General preprocessing 
     df_transformed = preprocess_general(df)

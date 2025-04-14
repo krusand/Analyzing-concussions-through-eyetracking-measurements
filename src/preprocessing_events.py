@@ -16,24 +16,6 @@ from tqdm import tqdm
 ###   ANTI_SACCADE   ###
 ########################
 
-def set_column_dtype_anti_saccade(df):
-    logging.info("Starting dtype transformation for ANTI_SACCADE")
-    
-    for col, dtype in type_map["ANTI_SACCADE"].items():
-        if col in df.columns:
-            try:
-                if ("float" in dtype) | ("int" in dtype):
-                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
-                else:
-                    df[col] = df[col].astype(dtype)
-            except Exception as e:
-                logging.error(f"Failed to convert '{col}' to {dtype}: {e}")
-        else:
-            logging.warning(f"Column '{col}' not found in DataFrame")
-    logging.info("Finished dtype transformation for ANTI_SACCADE")
-
-    return df
-                
 def coalesce_time_elapsed(df):
     logging.info("Coalesce time elapsed and delay")
     # Use delay as a fallback for time_elapsed and then drop the delay column
@@ -113,11 +95,11 @@ def stimulus_active(df):
     return df
 
 
-def preprocess_anti_saccade(df):
+def preprocess_anti_saccade(df, experiment):
     logging.info("Preprocessing anti_saccade")
-    df_trans = (
-        df.pipe(coalesce_time)
-        .pipe(set_column_dtype_anti_saccade)
+    df_trans = (df
+        .pipe(set_column_dtype, experiment)
+        .pipe(coalesce_time)
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
@@ -132,28 +114,12 @@ def preprocess_anti_saccade(df):
 ###   EVIL_BASTARD   ###
 ########################
 
-def set_column_dtype_evil_bastard(df):
-    logging.info("Transform numeric columns")
-    
-    for col, dtype in type_map["EVIL_BASTARD"].items():
-        if col in df.columns:
-            try:
-                if ("float" in dtype) | ("int" in dtype):
-                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
-                else:
-                    df[col] = df[col].astype(dtype)
-            except Exception as e:
-                logging.error(f"Failed to convert {col} to {dtype}: {e}")
-        else:
-            logging.warning(f"Column {col} not found in DataFrame")
-        
-    return df
 
-def preprocess_evil_bastard(df):
+def preprocess_evil_bastard(df, experiment):
     logging.info("Preprocessing evil bastard")
     df_trans = (df
+        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
-        .pipe(set_column_dtype_evil_bastard)
         .pipe(fill_values)
     )
     return df_trans
@@ -162,6 +128,27 @@ def preprocess_evil_bastard(df):
 ###################
 ###   General   ###
 ###################
+
+
+
+def set_column_dtype(df, experiment):
+    logging.info("Starting dtype transformation for ANTI_SACCADE")
+    
+    for col, dtype in type_map[experiment].items():
+        if col in df.columns:
+            try:
+                if ("float" in dtype) | ("int" in dtype):
+                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)
+                else:
+                    df[col] = df[col].astype(dtype)
+            except Exception as e:
+                logging.error(f"Failed to convert '{col}' to {dtype}: {e}")
+        else:
+            logging.warning(f"Column '{col}' not found in DataFrame")
+    logging.info("Finished dtype transformation for ANTI_SACCADE")
+
+    return df
+                
 
 def coalesce_time(df):
     logging.info("Coalesce time")
@@ -282,8 +269,7 @@ def remove_start_events(df):
 def preprocess_general(df):
     logging.info("Performing general preprocessing")
     
-    df_transformed = (
-        df
+    df_transformed = (df
         .pipe(remove_trialid_event)
         .pipe(standardise_time)
         .pipe(remove_invalid_saccades)
@@ -300,7 +286,7 @@ def preprocess_experiment(experiment):
     "EVIL_BASTARD": preprocess_evil_bastard,
     }
 
-    df = preprocessing_funcs.get(experiment, lambda x: x)(df)
+    df = preprocessing_funcs.get(experiment, lambda x: x)(df, experiment)
     
     # General preprocessing 
     df_transformed = preprocess_general(df)

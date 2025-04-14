@@ -145,8 +145,8 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
         .pipe(coalesce_stimulus_coordinates)
-        .pipe(stimulus_active)
         .pipe(fill_values)
+        .pipe(stimulus_active)
     )
     return df_trans
 

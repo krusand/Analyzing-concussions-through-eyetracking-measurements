@@ -46,6 +46,12 @@ def remove_invalid_fixpoints(df: pd.DataFrame) -> pd.DataFrame:
              (df['pos_y'].between(0, 1080)) | (df['pos_y'].isna()) &
              (df['stimulus_y'].between(0, 1080)) | (df['stimulus_y'].isna())
         ]
+    elif experiment == 'FITTS_LAW':
+        df[['stimulus_x', 'stimulus_y']] = df[['stimulus_x', 'stimulus_y']].apply(pd.to_numeric, errors='coerce')
+        filtered_df = df[
+             (df['stimulus_x'].between(0, 1920)) | (df['stimulus_x'].isna()) &
+             (df['stimulus_y'].between(0, 1080)) | (df['stimulus_y'].isna())
+        ]
     else:
         logging.info("Removed 0 rows")
         return df
@@ -88,6 +94,8 @@ def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
         query = "n_fixpoints > 0"
     elif experiment == "REACTION":
         query = "n_fixpoints == 2"
+    elif experiment == "FITTS_LAW":
+        query = "n_fixpoints == 2"
     else:
         logging.info("Removed 0 rows")
         return df   
@@ -113,7 +121,7 @@ def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
 def check_red_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Checking if there are the correct amount of red fixpoints for the given experiment")
     experiment = df["experiment"].unique()[0]
-    if experiment == "ANTI_SACCADE":
+    if experiment in ["ANTI_SACCADE", "REACTION"]:
         df_check = (df.
             query("event == 'FIXPOINT' & colour == '255 0 0'").
             groupby(["participant_id", "trial_id", "event"])["event"].
@@ -121,7 +129,7 @@ def check_red_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
             reset_index(name='n_red_fixpoints').
             query("n_red_fixpoints == 1")
         [["participant_id", "trial_id"]]
-        )    
+        )
     else:
         logging.info("Removed 0 rows")
         return df
@@ -139,7 +147,7 @@ def check_red_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
 def check_white_fixpoint(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Checking if there are the correct amount of white fixpoints for the given experiment")
     experiment = df["experiment"].unique()[0]
-    if experiment == "ANTI_SACCADE":
+    if experiment in ["ANTI_SACCADE", "REACTION"]:
         df_check = (df.
             query("event == 'FIXPOINT' & colour == '255 255 255'").
             groupby(["participant_id", "trial_id", "event"])["event"].

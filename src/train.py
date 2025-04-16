@@ -4,10 +4,11 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 from config import *
-features = pd.read_parquet(FEATURES_DIR / "anti_saccade_features.pq")
+features = pd.read_parquet(FEATURES_DIR / "features.pq")
 
 y_data = features["y"]
-X_data = features.drop(["experiment", "participant_id", "y"], axis=1)
+X_data = features.drop(["participant_id", "y"], axis=1)
+
 
 X_train, X_test, y_train, y_test = train_test_split(X_data, y_data, test_size=.2)
 

@@ -145,20 +145,17 @@ def run_pipeline(experiments, file_filters):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract events from ASC files.")
     parser.add_argument("--experiments", nargs='+', required=False, help="List of experiment names")
-    parser.add_argument("--file_filters", nargs='+', required=False, help="List of file filters")
     parser.add_argument('--all_experiments', required=False, action=argparse.BooleanOptionalAction, help="Run pipeline for all experiments")
     args = parser.parse_args()
-    if (not args.all_experiments or args.all_experiments is None) and (args.experiments is None or args.file_filters is None):
-        parser.error("--experiments and --file_filters must be provided when not running all experiments")
+    if (not args.all_experiments or args.all_experiments is None) and (args.experiments is None):
+        parser.error("--experiments must be provided when not running all experiments")
 
     if args.all_experiments:
         experiments = ["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
         file_filters = ["anti-saccade", "FittsLaw", "Fixations", "KingDevick", "Patterns", "Reaction", "Shapes", "SmoothPursuits"]
-    elif len(args.experiments) != len(args.file_filters):
-        raise ValueError("experiments and file_filters must be the same length")
     else:
         experiments = args.experiments
-        file_filters = args.file_filters
+        file_filters = [EXPERIMENT_FILE_FILTER_MAP[experiment] for experiment in experiments]
    
     
     run_pipeline(experiments, file_filters)

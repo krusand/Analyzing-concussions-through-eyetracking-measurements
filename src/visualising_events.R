@@ -730,8 +730,8 @@ shapes <- shapes_left %>%
 
 ## Visualisation ----
 
-p_id <- 396
-t_id <- 1
+p_id <- 395
+t_id <- 0
 
 shapes_plotting <- shapes %>% 
   filter(participant_id == p_id , trial_id == t_id) %>% 

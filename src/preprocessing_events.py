@@ -73,16 +73,28 @@ def stimulus_onset_time(df: pd.DataFrame) -> pd.DataFrame:
     
     return pd.concat(results) if results else df.copy()
 
-def stimulus_active(df: pd.DataFrame) -> pd.DataFrame:
+def stimulus_active(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Set stimulus active")
-    df = df.assign(
-        stimulus_active = df["colour"]
-            .map({
-                "255 0 0": True,
-                "255 255 255": False
-            }
+    if experiment == 'FITTS_LAW':
+        df = df.pipe(fill_values, ["colour"])
+        df = df.assign(
+            stimulus_active = df["colour"]
+                .map({
+                    "255 0 0": True,
+                    None: False
+                }
+            )
         )
-    )
+        df = df.assign(colour = lambda x: np.select([x["event"] == "FIXPOINT"],[x["colour"]], default=None))
+    else:
+        df = df.assign(
+            stimulus_active = df["colour"]
+                .map({
+                    "255 0 0": True,
+                    "255 255 255": False
+                }
+            )
+        )
     return df
 
 
@@ -96,7 +108,7 @@ def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(stimulus_onset_time)
         .pipe(standardise_time)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
-        .pipe(stimulus_active)
+        .pipe(stimulus_active, experiment)
     )
     
     return df_trans
@@ -137,7 +149,7 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(coalesce_time)
         .pipe(coalesce_stimulus_coordinates)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
-        .pipe(stimulus_active)
+        .pipe(stimulus_active, experiment)
     )
     return df_trans
 
@@ -146,22 +158,15 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 ###   FITTS_LAW   ###
 #####################
 
-
-
-
-
 def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing fitts law")
     df_trans = (df
         .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
-        .pipe(fill_values, ["colour","stimulus_x", "stimulus_y", "distance", "target_width"])
-        .pipe(stimulus_active)
+        .pipe(fill_values, ["distance", "target_width"])
+        .pipe(stimulus_active, experiment)
     )
     return df_trans
-
-
-
 
 
 ###################

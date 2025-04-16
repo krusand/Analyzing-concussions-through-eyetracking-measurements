@@ -12,7 +12,7 @@ setwd("/Users/viscom2025/Documents/Github/Analyzing-concussions-through-eyetrack
 
 # Anti saccade ----
 
-anti_saccade_raw <- read_parquet("data/anti_saccade_processed.pq") %>% #read_parquet("data/processed/ANTI_SACCADE.pq") %>% 
+anti_saccade_raw <- read_parquet("data/anti_saccade_raw.pq") %>% #read_parquet("data/raw/ANTI_SACCADE.pq") %>% 
   group_by(participant_id, trial_id) %>% 
   mutate(fixpoint_white_time = case_when(
     event == 'FIXPOINT' & colour == '255 255 255' ~ time
@@ -124,7 +124,7 @@ anti_saccade <- anti_saccade_left %>%
   bind_rows(anti_saccade_right)
 
 anti_saccade %>% 
-  write_parquet("data/anti_saccade_processed.pq")
+  write_parquet("data/anti_saccade_raw.pq")
 
 ## Visualising ----
 
@@ -311,7 +311,7 @@ ggplot(aes(x=stimulus_x, y=stimulus_y, colour=stimulus_colour)) +
 
 # King Devick ----
 
-king_devick_raw <- read_parquet("data/processed/KING_DEVICK.pq")
+king_devick_raw <- read_parquet("data/raw/KING_DEVICK__events.pq")
 
 
 ## Cleaning ----
@@ -417,7 +417,7 @@ ggplotly(p, tooltip = c("label"))
 
 
 
-fitts_law_raw <- read_parquet("data/processed/FITTS_LAW.pq")
+fitts_law_raw <- read_parquet("data/raw/FITTS_LAW_events.pq")
 
 ## Cleaning ----
 
@@ -530,7 +530,7 @@ ggplotly(p, tooltip = c("label", "colour_plotting"))
 # Smooth Pursuit ----
 special_participants <- c(87, 89, 93, 96, 103, 105, 109, 117, 118, 119, 120, 127, 128, 141)
 
-smooth_pursuits_raw <- read_parquet("data/processed/SMOOTH_PURSUITS.pq") %>% 
+smooth_pursuits_raw <- read_parquet("data/raw/SMOOTH_PURSUITS_events.pq") %>% 
   filter(!participant_id %in% special_participants)
 
 
@@ -648,7 +648,7 @@ ggplotly(p, tooltip = c("label", "colour_plotting"))
 
 # Shapes ----
 
-shapes_raw <- read_parquet("data/processed/SHAPES.pq") %>% 
+shapes_raw <- read_parquet("data/raw/SHAPES_events.pq") %>% 
   filter(!participant_id %in% special_participants)
 
 ## Cleaning ----
@@ -762,7 +762,7 @@ ggplotly(p, tooltip = c("label", "colour_plotting"))
 
 # Evil bastard ----
 
-evil_bastard_raw <- read_parquet("data/processed/EVIL_BASTARD.pq") %>% 
+evil_bastard_raw <- read_parquet("data/raw/EVIL_BASTARD_events.pq") %>% 
   filter(!participant_id %in% special_participants)
 
 

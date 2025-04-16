@@ -28,10 +28,21 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s"
 )
 
-# Prperocessing
+# Preprocessing
 numeric_columns_anti_saccade = ['participant_id', 'trial_id', 'time', 'stimulus_x', 'stimulus_y', 'start_time', 'end_time', 
                                 'duration', 'x', 'y', 'avg_pupil_size', 'start_x', 'start_y', 'end_x', 'end_y', 'amplitude', 
                                 'peak_velocity', 'time_elapsed', 'delay']
+
+EXPERIMENT_FILE_FILTER_MAP = {
+    "ANTI_SACCADE": "anti-saccade",
+    "FITTS_LAW": "FittsLaw",
+    "FIXATIONS": "Fixations",
+    "KING_DEVICK": "KingDevick",
+    "EVIL_BASTARD": "Patterns",
+    "REACTION": "Reaction",
+    "SHAPES": "Shapes",
+    "SMOOTH_PURSUITS": "SmoothPursuits"
+}
 
 
 type_map = {
@@ -136,6 +147,27 @@ type_map = {
         'peak_velocity' : "float64", 
         'distance' : "float64",
         'target_width': "float64"},
+    "KING_DEVICK" : {
+        'experiment' : "string",
+        'participant_id' : "int64", 
+        'trial_id' : "int64", 
+        'time' : "int64", 
+        'event' : "string",
+        'eye' : "string",
+        'start_time' : "float64", 
+        'end_time' : "float64", 
+        'duration' : "float64", 
+        'x' : "float64", 
+        'y' : "float64", 
+        'avg_pupil_size' : "float64", 
+        'start_x' : "float64", 
+        'start_y' : "float64", 
+        'end_x' : "float64", 
+        'end_y' : "float64", 
+        'amplitude' : "float64", 
+        'peak_velocity' : "float64", 
+        'marks' : "Int64",
+        'time_elapsed': "float64"},
 }
 
 type_map_samples = {

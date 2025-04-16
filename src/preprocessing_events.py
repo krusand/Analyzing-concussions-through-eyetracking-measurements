@@ -169,6 +169,19 @@ def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     return df_trans
 
 
+#######################
+###   KING_DEVICK   ###
+#######################
+
+def preprocess_king_devick(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
+    logging.info("Preprocessing king devick")
+    df_trans = (df
+        .pipe(set_column_dtype, experiment)
+        .pipe(coalesce_time)
+        .pipe(fill_values, ["marks", "time_elapsed"], backfill=True)
+    )
+    return df_trans
+
 ###################
 ###   General   ###
 ###################
@@ -222,12 +235,14 @@ def standardise_time(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
-def fill_values(df: pd.DataFrame, fill_on_columns: list) -> pd.DataFrame:
+def fill_values(df: pd.DataFrame, fill_on_columns: list, backfill:bool = False) -> pd.DataFrame:
     logging.info("Fill missing values")
     
     grouped_df = group_df(df)
     for col in fill_on_columns:
         df.loc[:,col] = grouped_df[col].ffill()
+        if backfill:
+            df.loc[:,col] = grouped_df[col].bfill()
     return df
 
 def remove_invalid_saccades(df: pd.DataFrame) -> pd.DataFrame:
@@ -330,7 +345,8 @@ def preprocess_experiment(experiment:str) -> None:
         "ANTI_SACCADE": preprocess_anti_saccade,
         "EVIL_BASTARD": preprocess_evil_bastard,
         "REACTION": preprocess_reaction,
-        "FITTS_LAW": preprocess_fitts_law
+        "FITTS_LAW": preprocess_fitts_law,
+        "KING_DEVICK": preprocess_king_devick
     }
 
     df = preprocessing_funcs.get(experiment, lambda x,y: x)(df, experiment)

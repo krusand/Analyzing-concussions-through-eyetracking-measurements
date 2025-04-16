@@ -230,7 +230,28 @@ def check_end_event(df: pd.DataFrame) -> pd.DataFrame:
         print_info_removed_rows(filtered_df, df)
     return filtered_df
 
+def check_special_columns(df: pd.DataFrame) -> pd.DataFrame:
+    logging.info("Checking if special column values are correct")
+    experiment = df["experiment"].unique()[0]
 
+    if experiment == 'KING_DEVICK':
+        df_check = (df.loc[
+            (df['event'] == 'TRIAL_VAR_DATA') & df['marks'].str.isdigit(),
+            ['participant_id', 'trial_id']]
+        )
+    else:
+        logging.info("Removed 0 rows")
+        return df
+    
+    
+    filtered_df = pd.merge(df, df_check, how='inner', on = ["participant_id", 'trial_id'])
+
+    rows_removed = len(df)-len(filtered_df)
+
+    logging.info(f"Removed {rows_removed} rows")
+    if rows_removed > 0:
+        print_info_removed_rows(filtered_df, df)
+    return filtered_df
 
 
 def clean_events(df:pd.DataFrame) -> pd.DataFrame:
@@ -245,7 +266,8 @@ def clean_events(df:pd.DataFrame) -> pd.DataFrame:
         pipe(check_white_fixpoint).
         pipe(check_trial_var_data).
         pipe(check_start_event).
-        pipe(check_end_event)
+        pipe(check_end_event).
+        pipe(check_special_columns, )
     )
     return cleaned_df
     

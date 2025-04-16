@@ -73,15 +73,6 @@ def stimulus_onset_time(df: pd.DataFrame) -> pd.DataFrame:
     
     return pd.concat(results) if results else df.copy()
 
-def fill_values(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Fill values")
-    grouped_df = group_df(df)
-    df.loc[:,"colour"] = grouped_df["colour"].ffill()
-    df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
-    df.loc[:,"stimulus_y"] = grouped_df["stimulus_y"].ffill()
-    
-    return df
-
 def stimulus_active(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Set stimulus active")
     df = df.assign(
@@ -104,7 +95,7 @@ def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
         .pipe(standardise_time)
-        .pipe(fill_values)
+        .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active)
     )
     
@@ -120,7 +111,7 @@ def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     df_trans = (df
         .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
-        .pipe(fill_values)
+        .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
     )
     return df_trans
 
@@ -145,10 +136,32 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
         .pipe(coalesce_stimulus_coordinates)
-        .pipe(fill_values)
+        .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active)
     )
     return df_trans
+
+
+#####################
+###   FITTS_LAW   ###
+#####################
+
+
+
+
+
+def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
+    logging.info("Preprocessing fitts law")
+    df_trans = (df
+        .pipe(set_column_dtype, experiment)
+        .pipe(coalesce_time)
+        .pipe(fill_values, ["colour","stimulus_x", "stimulus_y", "distance", "target_width"])
+        .pipe(stimulus_active)
+    )
+    return df_trans
+
+
+
 
 
 ###################
@@ -158,7 +171,7 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 
 
 def set_column_dtype(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
-    logging.info("Starting dtype transformation for ANTI_SACCADE")
+    logging.info(f"Starting dtype transformation for {experiment}")
     
     for col, dtype in type_map[experiment].items():
         if col in df.columns:
@@ -171,7 +184,7 @@ def set_column_dtype(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
                 logging.error(f"Failed to convert '{col}' to {dtype}: {e}")
         else:
             logging.warning(f"Column '{col}' not found in DataFrame")
-    logging.info("Finished dtype transformation for ANTI_SACCADE")
+    logging.info(f"Finished dtype transformation for {experiment}")
 
     return df
                 
@@ -183,7 +196,7 @@ def coalesce_time(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def group_df(df: pd.DataFrame) -> pd.DataFrame:
-    grouped_df = df.sort_values(["participant_id", "trial_id", "time"]).groupby(["participant_id", "trial_id"])#[df.columns]
+    grouped_df = df.sort_values(["participant_id", "trial_id", "time"]).groupby(["participant_id", "trial_id"])
     
     return grouped_df
 
@@ -204,14 +217,12 @@ def standardise_time(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
-def fill_values(df: pd.DataFrame) -> pd.DataFrame:
+def fill_values(df: pd.DataFrame, fill_on_columns: list) -> pd.DataFrame:
     logging.info("Fill missing values")
     
     grouped_df = group_df(df)
-    df.loc[:,"colour"] = grouped_df["colour"].ffill()
-    df.loc[:,"stimulus_x"] = grouped_df["stimulus_x"].ffill()
-    df.loc[:,"stimulus_y"] = grouped_df["stimulus_y"].ffill()
-    
+    for col in fill_on_columns:
+        df.loc[:,col] = grouped_df[col].ffill()
     return df
 
 def remove_invalid_saccades(df: pd.DataFrame) -> pd.DataFrame:
@@ -313,7 +324,8 @@ def preprocess_experiment(experiment:str) -> None:
     preprocessing_funcs = {
         "ANTI_SACCADE": preprocess_anti_saccade,
         "EVIL_BASTARD": preprocess_evil_bastard,
-        "REACTION": preprocess_reaction
+        "REACTION": preprocess_reaction,
+        "FITTS_LAW": preprocess_fitts_law
     }
 
     df = preprocessing_funcs.get(experiment, lambda x: x)(df, experiment)
@@ -327,7 +339,10 @@ def preprocess_experiment(experiment:str) -> None:
 def main(experiments: list[str]):
     # Convert asc files to parquet files
     for experiment in experiments:
+        logging.info(f"Starting preprocessing process of experiment: {experiment}")
         preprocess_experiment(experiment)
+        logging.info(f"Finished preprocessing process of experiment: {experiment}")
+
     
 
 if __name__ == '__main__':

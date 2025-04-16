@@ -17,15 +17,15 @@ def get_event_pipeline_steps(experiments: list[str], file_filters: list[str]) ->
         
 
     event_pipeline_steps = [
-        # { # --> RAW
-        #     "name": "Extracting Events",
-        #     "script": "extracting_events.py",
-        #     "description": "Converts asc files to parquet files",
-        #     "args": {
-        #             "experiments" : experiments,
-        #             "file_filters" : file_filters
-        #     }
-        # },
+        { # --> RAW
+            "name": "Extracting Events",
+            "script": "extracting_events.py",
+            "description": "Converts asc files to parquet files",
+            "args": {
+                    "experiments" : experiments,
+                    "file_filters" : file_filters
+            }
+        },
         { # RAW --> CLEANED
             "name": "Cleaning Events",
             "script": "cleaning_events.py",

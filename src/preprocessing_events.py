@@ -333,7 +333,7 @@ def preprocess_experiment(experiment:str) -> None:
         "FITTS_LAW": preprocess_fitts_law
     }
 
-    df = preprocessing_funcs.get(experiment, lambda x: x)(df, experiment)
+    df = preprocessing_funcs.get(experiment, lambda x,y: x)(df, experiment)
     
     # General preprocessing 
     df_transformed = preprocess_general(df)

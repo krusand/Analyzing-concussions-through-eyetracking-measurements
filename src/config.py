@@ -136,6 +136,27 @@ type_map = {
         'peak_velocity' : "float64", 
         'distance' : "float64",
         'target_width': "float64"},
+    "KING_DEVICK" : {
+        'experiment' : "string",
+        'participant_id' : "int64", 
+        'trial_id' : "int64", 
+        'time' : "int64", 
+        'event' : "string",
+        'eye' : "string",
+        'start_time' : "float64", 
+        'end_time' : "float64", 
+        'duration' : "float64", 
+        'x' : "float64", 
+        'y' : "float64", 
+        'avg_pupil_size' : "float64", 
+        'start_x' : "float64", 
+        'start_y' : "float64", 
+        'end_x' : "float64", 
+        'end_y' : "float64", 
+        'amplitude' : "float64", 
+        'peak_velocity' : "float64", 
+        'marks' : "Int64",
+        'time_elapsed': "float64"},
 }
 
 type_map_samples = {

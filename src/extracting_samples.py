@@ -174,7 +174,7 @@ def process_asc_files(asc_files, experiment):
     df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
 
-    df_event_raw = pd.read_parquet(RAW_DIR / "REACTION_events.pq")
+    df_event_raw = pd.read_parquet(RAW_DIR / f"{experiment}_events.pq")
 
 
     path_save = CLEANED_DIR / f"{experiment}_samples.pq"
@@ -188,11 +188,13 @@ def process_asc_files(asc_files, experiment):
         
         # Only process sample data, if participant also exists in event data
         if str(participant_id) not in df_events["participant_id"].unique():
+            logging.warning("Proceeding to next step, participant_id mismatch")
             continue
         
         # TODO: We need to think about how to do this in a proper way:
         # Currently this compares the number of trials filtered away. If any are filtered away, we continue, because otherwise the samples will not work
         if len(df_events[df_events["participant_id"] == participant_id]["trial_id"].unique()) != len(df_event_raw[df_event_raw["participant_id"] == participant_id]["trial_id"].unique()):
+            logging.warning("Proceeding to next step, trial mismatch")
             continue
         
         df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
@@ -222,13 +224,10 @@ def process_asc_files(asc_files, experiment):
         df = set_column_dtype(df)
         
         logging.info("Ready to save")
-        
-        print(df["trial_id"].unique())
-        
+                
         df.to_parquet(path_save, engine="fastparquet", append = not first_write)
         first_write = False
             
-    return
 
 def main(experiments, file_filters):
     # Convert asc files to parquet files

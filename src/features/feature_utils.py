@@ -8,6 +8,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 import pandas as pd
 import numpy as np
 from functools import reduce
+from tqdm import tqdm
 
 def rename_columns(df):
     """Renames columns by joining multi-level column names with different delimiters."""

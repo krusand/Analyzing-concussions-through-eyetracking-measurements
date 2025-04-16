@@ -28,10 +28,21 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(module)s.%(funcName)s:%(lineno)d - %(message)s"
 )
 
-# Prperocessing
+# Preprocessing
 numeric_columns_anti_saccade = ['participant_id', 'trial_id', 'time', 'stimulus_x', 'stimulus_y', 'start_time', 'end_time', 
                                 'duration', 'x', 'y', 'avg_pupil_size', 'start_x', 'start_y', 'end_x', 'end_y', 'amplitude', 
                                 'peak_velocity', 'time_elapsed', 'delay']
+
+EXPERIMENT_FILE_FILTER_MAP = {
+    "ANTI_SACCADE": "anti-saccade",
+    "FITTS_LAW": "FittsLaw",
+    "FIXATIONS": "Fixations",
+    "KING_DEVICK": "KingDevick",
+    "EVIL_BASTARD": "Patterns",
+    "REACTION": "Reaction",
+    "SHAPES": "Shapes",
+    "SMOOTH_PURSUITS": "SmoothPursuits"
+}
 
 
 type_map = {

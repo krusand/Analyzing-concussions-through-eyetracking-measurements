@@ -203,7 +203,7 @@ def anti_saccade_get_reaction_time_feature(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     
-def get_anti_saccade_features(df_event: pd.DataFrame, df_sample:pd.DataFrame) -> pd.DataFrame:
+def get_anti_saccade_features() -> pd.DataFrame:
     """Runs all anti saccade features extractions
 
     Args:
@@ -213,7 +213,15 @@ def get_anti_saccade_features(df_event: pd.DataFrame, df_sample:pd.DataFrame) ->
     Returns:
         pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
     """
+
     logging.info("Extracting anti saccade features")
+
+    experiment = "ANTI_SACCADE" 
+    
+    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+    .sort_values(["experiment", "participant_id", "trial_id","time"])
+    )
     
     logging.info("Starting event feature extraction")
     event_feature_functions = [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature]
@@ -324,7 +332,7 @@ def reaction_get_n_correct_trials_feature(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Extracting n correct trials")
 
     feature_df = (df
-     .pipe(get_trial_correctness_df)
+     .pipe(reaction_get_trial_correctness_df)
      .groupby(["experiment","participant_id", "trial_id"])
      .agg(is_trial_correct = ('is_trial_correct', 'min')) 
      .reset_index()
@@ -376,7 +384,7 @@ def reaction_get_reaction_time_feature(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-def get_reaction_features(df_event: pd.DataFrame, df_sample:pd.DataFrame = None) -> pd.DataFrame:
+def get_reaction_features() -> pd.DataFrame:
     """Runs all reaction feature extractions
 
     Args:
@@ -387,6 +395,14 @@ def get_reaction_features(df_event: pd.DataFrame, df_sample:pd.DataFrame = None)
         pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
     """
     logging.info("Extracting reaction features")
+    
+    experiment = "REACTION"
+    
+    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+    .sort_values(["experiment", "participant_id", "trial_id","time"])
+    )
+    
     logging.info("Starting event feature extraction")
 
     event_feature_functions = [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature]
@@ -571,7 +587,7 @@ def fitts_law_get_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
-def get_fitts_law_features(df_event: pd.DataFrame, df_sample:pd.DataFrame) -> pd.DataFrame:
+def get_fitts_law_features() -> pd.DataFrame:
     """Runs all fitts law features extractions
 
     Args:
@@ -582,6 +598,13 @@ def get_fitts_law_features(df_event: pd.DataFrame, df_sample:pd.DataFrame) -> pd
         pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
     """
     logging.info("Starting fitts law feature extraction")
+    
+    experiment = "FITTS_LAW"
+    
+    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+    .sort_values(["experiment", "participant_id", "trial_id","time"])
+    )
     
     logging.info("Starting event feature extraction")
     event_feature_functions = [fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second, get_pre_calculated_metrics_feature]
@@ -622,7 +645,7 @@ def king_devick_get_avg_time_elapsed_pr_trial(df: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-def get_king_devick_features(df_event: pd.DataFrame, df_sample:pd.DataFrame) -> pd.DataFrame:
+def get_king_devick_features() -> pd.DataFrame:
     """Runs all king devick features extractions
 
     Args:
@@ -633,6 +656,13 @@ def get_king_devick_features(df_event: pd.DataFrame, df_sample:pd.DataFrame) -> 
         pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
     """
     logging.info("Starting fitts law feature extraction")
+    
+    experiment = "KING_DEVICK"
+    
+    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+    .sort_values(["experiment", "participant_id", "trial_id","time"])
+    )
     
     logging.info("Starting event feature extraction")
     event_feature_functions = [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature]

@@ -49,15 +49,11 @@ def join_demographic_info_on_features(feature_df: pd.DataFrame) -> pd.DataFrame:
 def run_feature_extraction(experiments: list[str]) -> None:
     logging.info("Running feature extraction")
     for experiment in experiments:
-            
-        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq").reset_index(drop=True)
-        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-        .sort_values(["experiment", "participant_id", "trial_id","time"])
-        )
+
         func_name = f"get_{experiment.lower()}_features"
         feature_func = globals().get(func_name)
         if feature_func:
-            features = feature_func(df_event, df_sample)
+            features = feature_func()
             features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
         else:
             raise ValueError(f"No feature extraction function found for: {experiment}")

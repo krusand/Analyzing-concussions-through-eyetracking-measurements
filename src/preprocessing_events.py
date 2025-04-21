@@ -101,8 +101,8 @@ def stimulus_active(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing anti_saccade")
     df_trans = (df
-        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
+        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
@@ -121,8 +121,8 @@ def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     logging.info("Preprocessing evil bastard")
     df_trans = (df
-        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
+        .pipe(set_column_dtype, experiment)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
     )
     return df_trans
@@ -145,8 +145,8 @@ def coalesce_stimulus_coordinates(df: pd.DataFrame) -> pd.DataFrame:
 def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing reaction")
     df_trans = (df
-        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
+        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_stimulus_coordinates)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active, experiment)
@@ -161,8 +161,8 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing fitts law")
     df_trans = (df
-        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
+        .pipe(set_column_dtype, experiment)
         .pipe(fill_values, ["distance", "target_width"])
         .pipe(stimulus_active, experiment)
     )
@@ -176,8 +176,8 @@ def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 def preprocess_king_devick(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing king devick")
     df_trans = (df
-        .pipe(set_column_dtype, experiment)
         .pipe(coalesce_time)
+        .pipe(set_column_dtype, experiment)
         .pipe(fill_values, ["marks", "time_elapsed"], backfill=True)
     )
     return df_trans

@@ -24,7 +24,7 @@ def load_features(experiments: list[str]) -> pd.DataFrame:
         df = df.drop("experiment", axis=1)
         df_features_list.append(df)
     
-    df_features = reduce(lambda x, y: pd.merge(x, y, on = ["participant_id"]), df_features_list)
+    df_features = reduce(lambda x, y: pd.merge(x, y, on = ["participant_id"], how="outer"), df_features_list)
     
     logging.info("Finished loading features")
     

@@ -76,6 +76,17 @@ def get_acceleration_feature(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_disconjugacy_feature(df:pd.DataFrame) -> pd.DataFrame:
     logging.info("Extracting disconjugacy")
+    
+    if len(df.query("x_left == x_left & x_right == x_right & y_left == y_left & y_right == y_right"))==0:
+        disconjugacy = (df
+            .sort_values(["experiment", "participant_id", "trial_id", "time"])
+            .groupby(["experiment", "participant_id"])
+            .first()
+            .assign(Var_total=None)
+            .reset_index()
+            [["experiment", "participant_id", "Var_total"]])
+        return disconjugacy
+    
     disconjugacy = (df
         .sort_values(["experiment", "participant_id", "trial_id", "time"])
         .query("x_left == x_left & x_right == x_right & y_left == y_left & y_right == y_right") # same as not null

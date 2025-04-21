@@ -203,7 +203,7 @@ def anti_saccade_get_reaction_time_feature(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     
-def get_anti_saccade_features() -> pd.DataFrame:
+def get_anti_saccade_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
     """Runs all anti saccade features extractions
 
     Args:
@@ -216,20 +216,24 @@ def get_anti_saccade_features() -> pd.DataFrame:
 
     logging.info("Extracting anti saccade features")
 
-    experiment = "ANTI_SACCADE" 
+    experiment = "ANTI_SACCADE"     
+    df_event_features_list=[]
+    df_sample_features_list=[]
     
-    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-    .sort_values(["experiment", "participant_id", "trial_id","time"])
-    )
-    
-    logging.info("Starting event feature extraction")
-    event_feature_functions = [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature]
-    df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+    if event_features:
+        logging.info("Starting event feature extraction")
+        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
 
-    logging.info("Starting sample feature extraction")
-    sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-    df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+        event_feature_functions = [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature]
+        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+
+    if sample_features:
+        logging.info("Starting sample feature extraction")
+        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+        .sort_values(["experiment", "participant_id", "trial_id","time"])
+        )
+        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
+        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
     
     df_features_list = df_event_features_list + df_sample_features_list
     
@@ -384,7 +388,7 @@ def reaction_get_reaction_time_feature(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-def get_reaction_features() -> pd.DataFrame:
+def get_reaction_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
     """Runs all reaction feature extractions
 
     Args:
@@ -397,21 +401,26 @@ def get_reaction_features() -> pd.DataFrame:
     logging.info("Extracting reaction features")
     
     experiment = "REACTION"
+    df_event_features_list=[]
+    df_sample_features_list=[]
     
-    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-    .sort_values(["experiment", "participant_id", "trial_id","time"])
-    )
-    
-    logging.info("Starting event feature extraction")
 
-    event_feature_functions = [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature]
-    df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-    
-    logging.info("Starting sample feature extraction")
+    if event_features:
+        logging.info("Starting event feature extraction")
+        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
 
-    sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-    df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+        event_feature_functions = [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature]
+        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+
+    if sample_features:
+        logging.info("Starting sample feature extraction")
+
+        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+        .sort_values(["experiment", "participant_id", "trial_id","time"])
+        )
+    
+        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
+        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
     
     df_features_list = df_event_features_list + df_sample_features_list
     
@@ -587,7 +596,7 @@ def fitts_law_get_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
-def get_fitts_law_features() -> pd.DataFrame:
+def get_fitts_law_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
     """Runs all fitts law features extractions
 
     Args:
@@ -600,20 +609,28 @@ def get_fitts_law_features() -> pd.DataFrame:
     logging.info("Starting fitts law feature extraction")
     
     experiment = "FITTS_LAW"
+    df_event_features_list=[]
+    df_sample_features_list=[]
     
-    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-    .sort_values(["experiment", "participant_id", "trial_id","time"])
-    )
-    
-    logging.info("Starting event feature extraction")
-    event_feature_functions = [fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second, get_pre_calculated_metrics_feature]
-    df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-    
-    logging.info("Starting sample feature extraction")
-    sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-    df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
-    
+
+    if event_features:
+        logging.info("Starting event feature extraction")
+        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+
+        event_feature_functions = [fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second, get_pre_calculated_metrics_feature]
+        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+
+    if sample_features:
+        
+        logging.info("Starting sample feature extraction")
+
+        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+        .sort_values(["experiment", "participant_id", "trial_id","time"])
+        )
+
+        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
+        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+        
     df_features_list = df_event_features_list + df_sample_features_list
     
     df_features = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_list)
@@ -645,7 +662,7 @@ def king_devick_get_avg_time_elapsed_pr_trial(df: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-def get_king_devick_features() -> pd.DataFrame:
+def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
     """Runs all king devick features extractions
 
     Args:
@@ -658,19 +675,26 @@ def get_king_devick_features() -> pd.DataFrame:
     logging.info("Starting fitts law feature extraction")
     
     experiment = "KING_DEVICK"
+    df_event_features_list=[]
+    df_sample_features_list=[]
     
-    df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-    df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-    .sort_values(["experiment", "participant_id", "trial_id","time"])
-    )
-    
-    logging.info("Starting event feature extraction")
-    event_feature_functions = [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature]
-    df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-    
-    logging.info("Starting sample feature extraction")
-    sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-    df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+    if event_features:
+        logging.info("Starting event feature extraction")
+        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
+
+        event_feature_functions = [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature]
+        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+
+    if sample_features:
+            
+        logging.info("Starting sample feature extraction")
+
+        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
+        .sort_values(["experiment", "participant_id", "trial_id","time"])
+        )
+
+        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
+        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
     
     df_features_list = df_event_features_list + df_sample_features_list
     

@@ -380,7 +380,7 @@ def preprocess_experiment(experiment:str) -> None:
         "KING_DEVICK": preprocess_king_devick,
         "EVIL_BASTARD": preprocess_evil_bastard,
         "SHAPES": preprocess_shapes,
-        "SMOOTH_PURSUIT": preprocess_smooth_pursuit
+        "SMOOTH_PURSUITS": preprocess_smooth_pursuit
     }
 
     df = preprocessing_funcs.get(experiment, lambda x,y: x)(df, experiment)

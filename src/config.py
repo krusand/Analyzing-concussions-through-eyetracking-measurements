@@ -44,9 +44,6 @@ EXPERIMENT_FILE_FILTER_MAP = {
     "SMOOTH_PURSUITS": "SmoothPursuits"
 }
 
-
-
-
 type_map = {
         'experiment' : "string",
         'participant_id' : "int64", 

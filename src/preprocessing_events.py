@@ -6,12 +6,6 @@ import numpy as np
 from tqdm import tqdm
 
 
-# experiments = ["ANTI_SACCADE", "FITTS_LAW", "FIXATIONS", "KING_DEVICK", "EVIL_BASTARD", "REACTION", "SHAPES", "SMOOTH_PURSUITS"]
-# Setup
-
-
-
-
 ########################
 ###   ANTI_SACCADE   ###
 ########################
@@ -267,14 +261,16 @@ def standardise_time(df: pd.DataFrame) -> pd.DataFrame:
     
     return df
 
-def fill_values(df: pd.DataFrame, fill_on_columns: list, backfill:bool = False) -> pd.DataFrame:
+def fill_values(df: pd.DataFrame, fill_on_columns: list, forwardfill:bool = True, backfill:bool = False) -> pd.DataFrame:
     logging.info("Fill missing values")
-    
     grouped_df = group_df(df)
     for col in fill_on_columns:
-        df.loc[:,col] = grouped_df[col].ffill()
-        if backfill:
+        if forwardfill and backfill:
+            df.loc[:,col] = grouped_df[col].bfill().ffill()
+        elif backfill:
             df.loc[:,col] = grouped_df[col].bfill()
+        elif forwardfill:
+            df.loc[:,col] = grouped_df[col].ffill()
     return df
 
 def remove_invalid_saccades(df: pd.DataFrame) -> pd.DataFrame:

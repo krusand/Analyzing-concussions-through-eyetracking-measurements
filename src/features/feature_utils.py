@@ -16,6 +16,45 @@ def rename_columns(df):
     df.columns = [f"{col[0]}" if col[1] == '' else f"{col[0]}_{col[1]}" for col in df.columns.values]
     return df
 
+def combine_samples_events(df_sample: pd.DataFrame, df_event: pd.DataFrame) -> pd.DataFrame:
+    """Combine sample data and event data to get fixpoints.
+    
+    Args:
+        df_sample (pd.DataFrame): Dataframe with preprocessed sample data
+        df_event (pd.DataFrame): Dataframe with preprocessed event data
+
+    Returns:
+        pd.DataFrame: Dataframe with fixpoints added to the sample data.
+    """
+    
+    # Extract fixpoints
+    df_fixpoints = df_event[df_event["event"]=="FIXPOINT"].loc[:,["participant_id", "trial_id", "time", "event", "colour", "stimulus_x", "stimulus_y"]]
+
+    # Insert fixpoints in sample data
+    df_sample = df_sample.copy()
+    df_fixpoints = df_fixpoints.copy()
+
+    # Make sure both DataFrames are sorted by time
+    df_sample = df_sample.sort_values(["time", "trial_id", "participant_id"])
+    df_fixpoints = df_fixpoints.sort_values(["time", "trial_id", "participant_id"])
+
+    # Rename 'colour' column to 'fixpoint' so it's ready to merge
+    df_fixpoints = df_fixpoints.rename(columns={"colour": "fixpoint"})
+
+    # Perform a backward-looking join: for each row in sample_df, find the most recent fixpoint time
+    df_sample = pd.merge_asof(
+        df_sample,
+        df_fixpoints,
+        on="time",
+        by=["participant_id", "trial_id"],
+        direction="nearest",
+        tolerance=10
+    )
+
+    df_sample["fixpoint"] = df_sample["fixpoint"].map({RED:"red", GREEN:"green", BLUE:"blue", WHITE:"white"})
+    
+    return df_sample
+
 ###############
 ### GENERAL ###
 ###############
@@ -76,6 +115,17 @@ def get_acceleration_feature(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_disconjugacy_feature(df:pd.DataFrame) -> pd.DataFrame:
     logging.info("Extracting disconjugacy")
+    
+    if len(df.query("x_left == x_left & x_right == x_right & y_left == y_left & y_right == y_right"))==0:
+        disconjugacy = (df
+            .sort_values(["experiment", "participant_id", "trial_id", "time"])
+            .groupby(["experiment", "participant_id"])
+            .first()
+            .assign(Var_total=None)
+            .reset_index()
+            [["experiment", "participant_id", "Var_total"]])
+        return disconjugacy
+    
     disconjugacy = (df
         .sort_values(["experiment", "participant_id", "trial_id", "time"])
         .query("x_left == x_left & x_right == x_right & y_left == y_left & y_right == y_right") # same as not null
@@ -110,7 +160,36 @@ def get_disconjugacy_feature(df:pd.DataFrame) -> pd.DataFrame:
     )
     return disconjugacy
 
+def get_distance_between_fixations(df: pd.DataFrame) -> pd.DataFrame:
+    """Finds acceleration features for anti saccade experiment
 
+    Args:
+        df (pd.DataFrame): Dataframe with preprocessed events
+
+    Returns:
+        pd.DataFrame: Dataframe with columns ['experiment','participant_id', X_FEATURES]
+        where X_FEATURES is a collection of features found by the following cartesian product:
+    """
+
+    df = (df.query("event == 'EFIX'")
+    .join((df
+        .query("event == 'EFIX'")
+        .groupby(["experiment", "participant_id", "trial_id", "eye"])[['x','y']].shift(1)
+        .rename(columns={"x": "x_lagged", 
+            "y": "y_lagged"})))
+    .assign(
+        x_fixation_dist = lambda x: x["x"] - x["x_lagged"],
+        y_fixation_dist = lambda x: x["y"] - x["y_lagged"])
+    .assign(
+        fixation_distance = lambda x: np.sqrt( np.power(x["x_fixation_dist"],2) + np.power(x["y_fixation_dist"],2))
+    )
+    .groupby(["experiment", "participant_id"])
+    .agg({'fixation_distance': [np.mean, np.std],
+    })
+    .reset_index()
+    .pipe(rename_columns)
+    )
+    return df
 
 ##################
 ## ANTI SACCADE ##
@@ -683,16 +762,175 @@ def get_king_devick_features() -> pd.DataFrame:
 ## EVIL BASTARD ##
 ##################
 
+def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
+    features = (df
+        .assign(
+            distance_to_fixpoint_left = lambda x: (x["x_left"]-x["stimulus_x"])**2+(x["y_left"]-x["stimulus_y"])**2,
+            distance_to_fixpoint_right = lambda x: (x["x_right"]-x["stimulus_x"])**2+(x["y_right"]-x["stimulus_y"])**2
+        )
+        .assign(
+            distance_to_fixpoint = lambda x: 
+                np.where(
+                    ~x["distance_to_fixpoint_left"].isna() & ~x["distance_to_fixpoint_right"].isna(),
+                    (x["distance_to_fixpoint_left"]+x["distance_to_fixpoint_right"])/2,
+                
+                    np.where(
+                        ~x["distance_to_fixpoint_left"].isna(),
+                        x["distance_to_fixpoint_left"],
+                        x["distance_to_fixpoint_right"]
+                    )
+                )
+        )
+        .groupby(["experiment", "participant_id"])
+        .agg({
+            'distance_to_fixpoint': ["mean", "min", "max", "median", "std"],
+        })
+        .reset_index()
+        .pipe(rename_columns)
+    )
+    
+    return features
+
+def get_evil_bastard_features() -> pd.DataFrame:
+    """Runs all evil bastard features extractions
+
+    Returns:
+        pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
+    """
+
+    logging.info("Extracting evil bastard features")
+    
+    experiment = "EVIL_BASTARD"
+    
+    # Read participant and trial id to identify unique participants
+    df_index = pd.read_parquet(
+        f"{PREPROCESSED_DIR}/{experiment}_events.pq", 
+        columns=["participant_id"]
+    )
+    participant_groups = df_index["participant_id"].unique()
+    
+    df_features_all_participants = []
+    for participant_id in tqdm(participant_groups, total=len(participant_groups)):
+        logging.info(f"Processing participant {participant_id}")
+
+        filters = [('participant_id', '=', participant_id)]
+        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq", filters=filters)
+        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq', filters=filters)
+        .sort_values(["experiment", "participant_id", "trial_id","time"])
+        )
+        df_combined = combine_samples_events(df_sample, df_event)
+        
+        logging.info("Starting event feature extraction")
+        event_feature_functions = [get_pre_calculated_metrics_feature, get_distance_between_fixations]
+        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+
+        logging.info("Starting sample feature extraction")
+        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
+        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+        
+        logging.info("Starting combined feature extraction")
+        combined_feature_functions = [get_distance_to_stimulus_features]
+        df_combined_features_list = [f(df=df_combined) for f in combined_feature_functions]
+    
+        df_features_par_list = df_event_features_list + df_sample_features_list + df_combined_features_list
+    
+        df_features_par = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_par_list)
+
+        df_features_all_participants.append(df_features_par)
+    
+    df_features = pd.concat(df_features_all_participants, ignore_index=True)
+    
+    logging.info("Finished extracting evil bastard features")
+    
+    return df_features
+
 
 ############
 ## SHAPES ##
 ############
 
-
 ####################
 ## SMOOTH PURSUIT ##
 ####################
 
+###############333
+EXPERIMENT_EVENT_FEATURE_MAP = {
+    "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature],
+    "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature],
+    "FITTS_LAW" : [fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second, get_pre_calculated_metrics_feature],
+    "KING_DEVICK" : [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature],
+    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
+    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
+    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations]
+}
+EXPERIMENT_SAMPLE_FEATURE_MAP = {
+    "ANTI_SACCADE" : [get_acceleration_feature, get_disconjugacy_feature],
+    "REACTION" : [get_acceleration_feature, get_disconjugacy_feature],
+    "FITTS_LAW" : [get_acceleration_feature, get_disconjugacy_feature],
+    "KING_DEVICK" : [get_acceleration_feature, get_disconjugacy_feature],
+    "EVIL_BASTARD" : [get_acceleration_feature, get_disconjugacy_feature],
+    "SHAPES" : [get_acceleration_feature, get_disconjugacy_feature],
+    "SMOOTH_PURSUITS" : [get_acceleration_feature, get_disconjugacy_feature]
+}
+EXPERIMENT_COMBINED_FEATURE_MAP = {
+    "EVIL_BASTARD" : [get_distance_to_stimulus_features],
+    "SHAPES" : [get_distance_to_stimulus_features],
+    "SMOOTH_PURSUITS" : [get_distance_to_stimulus_features]
+}
+
+def get_features(experiment) -> pd.DataFrame:
+    """Runs all features extractions
+
+    Returns:
+        pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
+    """
+
+    logging.info("Extracting features")
+    
+    # Read participant and trial id to identify unique participants
+    df_index = pd.read_parquet(
+        f"{PREPROCESSED_DIR}/{experiment}_events.pq", 
+        columns=["participant_id"]
+    )
+    participant_groups = df_index["participant_id"].unique()
+    
+    df_features_all_participants = []
+    for participant_id in tqdm(participant_groups, total=len(participant_groups)):
+        logging.info(f"Processing participant {participant_id}")
+
+        filters = [('participant_id', '=', participant_id)]
+        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq", filters=filters)
+        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq', filters=filters)
+        .sort_values(["experiment", "participant_id", "trial_id","time"])
+        )
+        df_combined = combine_samples_events(df_sample, df_event)
+        
+        logging.info("Starting event feature extraction")
+        event_feature_functions = EXPERIMENT_EVENT_FEATURE_MAP[experiment]
+        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+
+        logging.info("Starting sample feature extraction")
+        sample_feature_functions = EXPERIMENT_SAMPLE_FEATURE_MAP[experiment]
+        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+        
+        if experiment in EXPERIMENT_COMBINED_FEATURE_MAP:
+            logging.info("Starting combined feature extraction")
+            combined_feature_functions = EXPERIMENT_COMBINED_FEATURE_MAP[experiment]
+            df_combined_features_list = [f(df=df_combined) for f in combined_feature_functions]
+        
+            df_features_par_list = df_event_features_list + df_sample_features_list + df_combined_features_list
+        else:
+            df_features_par_list = df_event_features_list + df_sample_features_list
+    
+        df_features_par = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_par_list)
+
+        df_features_all_participants.append(df_features_par)
+    
+    df_features = pd.concat(df_features_all_participants, ignore_index=True)
+    
+    logging.info("Finished extracting evil bastard features")
+    
+    return df_features
 
 
 

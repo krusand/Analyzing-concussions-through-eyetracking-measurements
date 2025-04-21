@@ -46,8 +46,10 @@ def join_demographic_info_on_features(feature_df: pd.DataFrame) -> pd.DataFrame:
     return pd.merge(feature_df, demographics, how='left', on='participant_id')
     
     
-def run_feature_extraction(experiments: list[str]) -> None:
+def run_feature_extraction(args: argparse.ArgumentParser) -> None:
     logging.info("Running feature extraction")
+    experiments = args.experiments
+    
     for experiment in experiments:
 
         # func_name = "get_features" #f"get_{experiment.lower()}_features"
@@ -62,9 +64,9 @@ def run_feature_extraction(experiments: list[str]) -> None:
         features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
 
 
-def main(experiments: list[str]) -> None:
-    run_feature_extraction(experiments)
-    features = load_features(experiments)
+def main(args: argparse.ArgumentParser) -> None:
+    run_feature_extraction(args)
+    features = load_features(args.experiments)
     data = join_demographic_info_on_features(feature_df=features)
     data.to_parquet(FEATURES_DIR / 'features.pq')
     logging.info("Saved features to file")
@@ -73,5 +75,13 @@ def main(experiments: list[str]) -> None:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run feature extraction")
     parser.add_argument("--experiments", nargs='+', required=True, help="List of experiment names")
-    args = parser.parse_args()
-    main(args.experiments)
+    parser.add_argument("--event_features", action=argparse.BooleanOptionalAction, required=False, help="Should event features be calculated")
+    parser.add_argument("--sample_features", action=argparse.BooleanOptionalAction, required=False, help="Should sample features be calculated")
+    args = parser.parse_args()    
+
+    if args.event_features is None and args.sample_features is None:
+        logging.info("Defaulting to extracting both sample and event features")
+        args.event_features = True
+        args.sample_features = True
+    
+    main(args)

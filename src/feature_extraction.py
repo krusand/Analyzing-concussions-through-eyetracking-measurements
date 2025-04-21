@@ -50,13 +50,16 @@ def run_feature_extraction(experiments: list[str]) -> None:
     logging.info("Running feature extraction")
     for experiment in experiments:
 
-        func_name = f"get_{experiment.lower()}_features"
-        feature_func = globals().get(func_name)
-        if feature_func:
-            features = feature_func()
-            features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
-        else:
-            raise ValueError(f"No feature extraction function found for: {experiment}")
+        # func_name = "get_features" #f"get_{experiment.lower()}_features"
+        # feature_func = globals().get(func_name)
+        # if feature_func:
+        #     features = get_features(experiment)#feature_func()
+        #     features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
+        # else:
+        #     raise ValueError(f"No feature extraction function found for: {experiment}")
+
+        features = get_features(experiment)
+        features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
 
 
 def main(experiments: list[str]) -> None:

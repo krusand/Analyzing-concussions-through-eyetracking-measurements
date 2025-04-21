@@ -135,15 +135,17 @@ def set_column_dtype(df):
         
     return df
 
-def add_info_from_event(df, experiment, participant_id, df_event):
+def add_info_from_event(df: pd.DataFrame, experiment: str, participant_id: int, df_event: pd.DataFrame) -> pd.DataFrame:
     # Insert trial_id
     df_event_trials = df_event[(df_event["event"]=="START") | (df_event["event"]=="END")].loc[:,["trial_id", "time", "event"]]
     df_trials = df_event_trials.pivot(index="trial_id",columns="event")
     df_trials.columns = ["end_time", "start_time"]
     
-    df.insert(loc=0, column="trial_id", value= "")
+    df.insert(loc=0, column="trial_id", value= None)
     for t_id, (start_time, end_time) in enumerate(zip(df_trials["start_time"], df_trials["end_time"])):
         df.loc[(df["time"] >= start_time) & (df["time"] <= end_time),"trial_id"] = t_id
+    
+    df= df.dropna(subset=["trial_id"])
     
     # Insert participant_id
     df.insert(loc=0, column='participant_id', value=participant_id)
@@ -190,13 +192,7 @@ def process_asc_files(asc_files, experiment):
         if str(participant_id) not in df_events["participant_id"].unique():
             logging.warning("Proceeding to next step, participant_id mismatch")
             continue
-        
-        # TODO: We need to think about how to do this in a proper way:
-        # Currently this compares the number of trials filtered away. If any are filtered away, we continue, because otherwise the samples will not work
-        if len(df_events[df_events["participant_id"] == participant_id]["trial_id"].unique()) != len(df_event_raw[df_event_raw["participant_id"] == participant_id]["trial_id"].unique()):
-            logging.warning("Proceeding to next step, trial mismatch")
-            continue
-        
+
         df_event = df_events[df_events["participant_id"]==f"{participant_id}"]
         
         eyes = df_event["eye"].dropna().unique() 

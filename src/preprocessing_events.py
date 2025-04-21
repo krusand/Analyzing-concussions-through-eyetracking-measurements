@@ -102,7 +102,7 @@ def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing anti_saccade")
     df_trans = (df
         .pipe(coalesce_time)
-        .pipe(set_column_dtype, experiment)
+        .pipe(set_column_dtype)
         .pipe(coalesce_time_elapsed)
         .pipe(fill_values_side)
         .pipe(stimulus_onset_time)
@@ -122,7 +122,7 @@ def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     logging.info("Preprocessing evil bastard")
     df_trans = (df
         .pipe(coalesce_time)
-        .pipe(set_column_dtype, experiment)
+        .pipe(set_column_dtype)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
     )
     return df_trans
@@ -146,7 +146,7 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing reaction")
     df_trans = (df
         .pipe(coalesce_time)
-        .pipe(set_column_dtype, experiment)
+        .pipe(set_column_dtype)
         .pipe(coalesce_stimulus_coordinates)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active, experiment)
@@ -162,7 +162,7 @@ def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing fitts law")
     df_trans = (df
         .pipe(coalesce_time)
-        .pipe(set_column_dtype, experiment)
+        .pipe(set_column_dtype)
         .pipe(fill_values, ["distance", "target_width"])
         .pipe(stimulus_active, experiment)
     )
@@ -177,10 +177,42 @@ def preprocess_king_devick(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing king devick")
     df_trans = (df
         .pipe(coalesce_time)
-        .pipe(set_column_dtype, experiment)
+        .pipe(set_column_dtype)
         .pipe(fill_values, ["marks", "time_elapsed"], backfill=True)
     )
     return df_trans
+
+
+############
+## SHAPES ##
+############
+
+
+def preprocess_shapes(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
+    logging.info("Preprocessing shapes")
+    df_trans = (df
+        .pipe(coalesce_time)
+        .pipe(set_column_dtype)
+        .pipe(fill_values, ["shape"], backfill=True)
+    )
+    return df_trans
+
+
+
+
+####################
+## SMOOTH PURSUIT ##
+####################
+
+def preprocess_smooth_pursuit(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
+    logging.info("Preprocessing shapes")
+    df_trans = (df
+        .pipe(coalesce_time)
+        .pipe(set_column_dtype)
+        .pipe(fill_values, ["shape", "speed"], backfill=True)
+    )
+    return df_trans
+
 
 ###################
 ###   General   ###
@@ -188,10 +220,10 @@ def preprocess_king_devick(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 
 
 
-def set_column_dtype(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
-    logging.info(f"Starting dtype transformation for {experiment}")
+def set_column_dtype(df: pd.DataFrame) -> pd.DataFrame:
+    logging.info(f"Starting dtype transformation")
     
-    for col, dtype in type_map[experiment].items():
+    for col, dtype in type_map.items():
         if col in df.columns:
             try:
                 if ("float" in dtype) | ("int" in dtype):
@@ -201,8 +233,8 @@ def set_column_dtype(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
             except Exception as e:
                 logging.error(f"Failed to convert '{col}' to {dtype}: {e}")
         else:
-            logging.warning(f"Column '{col}' not found in DataFrame")
-    logging.info(f"Finished dtype transformation for {experiment}")
+            logging.warning(f"Column '{col}' not found in DataFrame - this is probably okay")
+    logging.info(f"Finished dtype transformation")
 
     return df
                 
@@ -343,10 +375,12 @@ def preprocess_experiment(experiment:str) -> None:
     
     preprocessing_funcs = {
         "ANTI_SACCADE": preprocess_anti_saccade,
-        "EVIL_BASTARD": preprocess_evil_bastard,
         "REACTION": preprocess_reaction,
         "FITTS_LAW": preprocess_fitts_law,
-        "KING_DEVICK": preprocess_king_devick
+        "KING_DEVICK": preprocess_king_devick,
+        "EVIL_BASTARD": preprocess_evil_bastard,
+        "SHAPES": preprocess_shapes,
+        "SMOOTH_PURSUIT": preprocess_smooth_pursuit
     }
 
     df = preprocessing_funcs.get(experiment, lambda x,y: x)(df, experiment)
@@ -363,7 +397,6 @@ def main(experiments: list[str]):
         logging.info(f"Starting preprocessing process of experiment: {experiment}")
         preprocess_experiment(experiment)
         logging.info(f"Finished preprocessing process of experiment: {experiment}")
-
     
 
 if __name__ == '__main__':

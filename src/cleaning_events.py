@@ -92,6 +92,10 @@ def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
         query = "n_fixpoints == 2"
     elif experiment == "EVIL_BASTARD":
         query = "n_fixpoints > 0"
+    elif experiment == "SMOOTH_PURSUITS":
+        query = "n_fixpoints > 0"
+    elif experiment == "SHAPES":
+        query = "n_fixpoints > 0"
     elif experiment == "REACTION":
         query = "n_fixpoints == 2"
     elif experiment == "FITTS_LAW":

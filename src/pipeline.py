@@ -13,19 +13,29 @@ from config import *
 import argparse
 
 
-def get_event_pipeline_steps(experiments: list[str], file_filters: list[str]) -> dict:
-        
+def get_pipeline_steps(experiments: list[str], file_filters: list[str]) -> list[dict]:
+    """
 
-    event_pipeline_steps = [
-        # { # --> RAW
-        #     "name": "Extracting Events",
-        #     "script": "extracting_events.py",
-        #     "description": "Converts asc files to parquet files",
-        #     "args": {
-        #             "experiments" : experiments,
-        #             "file_filters" : file_filters
-        #     }
-        # },
+    Args:
+        experiments (list[str]): list of experiments to run
+        file_filters (list[str]): list of file_filters to use when running
+
+    Returns:
+        list[dict]: contains the scripts of the pipeline
+    """
+
+    pipeline_steps = [
+        #### EVENTS:
+
+        { # --> RAW
+            "name": "Extracting Events",
+            "script": "extracting_events.py",
+            "description": "Converts asc files to parquet files",
+            "args": {
+                    "experiments" : experiments,
+                    "file_filters" : file_filters
+            }
+        },
         { # RAW --> CLEANED
             "name": "Cleaning Events",
             "script": "cleaning_events.py",
@@ -42,29 +52,9 @@ def get_event_pipeline_steps(experiments: list[str], file_filters: list[str]) ->
                     "experiments" : experiments
             }
         },
-        # {
-        #     "name": "Feature Extraction",
-        #     "script": "extract_features.py",
-        #     "description": "Extracts relevant features from preprocessed data"
-        # },
-        # {
-        #     "name": "Analysis",
-        #     "script": "analyze_data.py",
-        #     "description": "Performs statistical analysis on extracted features"
-        # },
-        # {
-        #     "name": "Visualization",
-        #     "script": "visualize_results.py",
-        #     "description": "Generates plots and visualizations of results"
-        # }
-    ]
-    
-    return event_pipeline_steps
-
-def get_sample_pipeline_steps(experiments: list[str], file_filters: list[str]) -> dict:
-
-
-    samples_pipeline_steps = [
+        
+        #### SAMPLES: 
+        
         { # --> CLEANED
             "name": "Extracting Samples",
             "script": "extracting_samples.py",
@@ -74,7 +64,7 @@ def get_sample_pipeline_steps(experiments: list[str], file_filters: list[str]) -
                     "file_filters" : file_filters
             }
         },
-        { # --> CLEANED
+        { # CLEANED --> PREPROCESSED
             "name": "Preprocessing Samples",
             "script": "preprocessing_samples.py",
             "description": "Applies general transformations to sample data",
@@ -82,14 +72,20 @@ def get_sample_pipeline_steps(experiments: list[str], file_filters: list[str]) -
                     "experiments" : experiments
             }
         },
-        # { # CLEANED --> PREPROCESSED
-        #     "name": "Preprocessing",
-        #     "script": "preprocessing_samples.py",
-        #     "description": "Preprocessing of sample data"
-        # }
+        
+        #### COMBINED: 
+        
+        { # PREPROCESSED --> FEATURES
+            "name": "Feature Extraction",
+            "script": "feature_extraction.py",
+            "description": "Extracts relevant features from preprocessed data",
+                    "args": {
+                    "experiments" : experiments
+            }
+        }
     ]
-
-    return samples_pipeline_steps
+    
+    return pipeline_steps
 
 def run_script(script_path, args=None):    
     command = [sys.executable, str(script_path)]
@@ -123,7 +119,7 @@ def run_pipeline(experiments, file_filters):
     pipeline_dir = Path(__file__).parent.absolute()
       
     # Run each step in sequence
-    for step in get_event_pipeline_steps(experiments, file_filters):
+    for step in get_pipeline_steps(experiments, file_filters):
         script_path = pipeline_dir / step["script"]
         logging.info(f"Step: {step['name']}")
         logging.info(f"Description: {step['description']}")
@@ -131,16 +127,7 @@ def run_pipeline(experiments, file_filters):
             logging.warning(f"Script not found: {script_path}")
             continue
         run_script(script_path, step.get("args"))
-    
-    # Run each step in sequence
-    for step in get_sample_pipeline_steps(experiments, file_filters):
-        script_path = pipeline_dir / step["script"]
-        logging.info(f"Step: {step['name']}")
-        logging.info(f"Description: {step['description']}")
-        if not script_path.exists():
-            logging.warning(f"Script not found: {script_path}")
-            continue
-        run_script(script_path, step.get("args"))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract events from ASC files.")

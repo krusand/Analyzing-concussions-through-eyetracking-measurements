@@ -49,6 +49,8 @@ def join_demographic_info_on_features(feature_df: pd.DataFrame) -> pd.DataFrame:
 def run_feature_extraction(args: argparse.ArgumentParser) -> None:
     logging.info("Running feature extraction")
     experiments = args.experiments
+    event_features = args.event_features
+    sample_features = args.sample_features
     
     for experiment in experiments:
 
@@ -60,7 +62,7 @@ def run_feature_extraction(args: argparse.ArgumentParser) -> None:
         # else:
         #     raise ValueError(f"No feature extraction function found for: {experiment}")
 
-        features = get_features(experiment)
+        features = get_features(experiment, event_features, sample_features)
         features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
 
 

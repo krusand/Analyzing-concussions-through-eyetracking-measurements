@@ -788,7 +788,7 @@ def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.Da
 
 def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
     features = (df
-        .assign(
+        .assign( # TODO: Fix this calculation: missing sqrt?
             distance_to_fixpoint_left = lambda x: (x["x_left"]-x["stimulus_x"])**2+(x["y_left"]-x["stimulus_y"])**2,
             distance_to_fixpoint_right = lambda x: (x["x_right"]-x["stimulus_x"])**2+(x["y_right"]-x["stimulus_y"])**2
         )

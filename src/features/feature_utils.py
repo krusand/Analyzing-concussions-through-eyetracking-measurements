@@ -902,14 +902,14 @@ EXPERIMENT_COMBINED_FEATURE_MAP = {
     "SMOOTH_PURSUITS" : [get_distance_to_stimulus_features]
 }
 
-def get_features(experiment) -> pd.DataFrame:
+def get_features(experiment: str, event_features: bool, sample_features: bool) -> pd.DataFrame:
     """Runs all features extractions
 
     Returns:
         pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
     """
 
-    logging.info("Extracting features")
+    logging.info(f"Extracting {experiment} features")
     
     # Read participant and trial id to identify unique participants
     df_index = pd.read_parquet(
@@ -919,32 +919,36 @@ def get_features(experiment) -> pd.DataFrame:
     participant_groups = df_index["participant_id"].unique()
     
     df_features_all_participants = []
+    df_event_features_list = []
+    df_sample_features_list = []
+    df_combined_features_list = []
+    
     for participant_id in tqdm(participant_groups, total=len(participant_groups)):
         logging.info(f"Processing participant {participant_id}")
 
         filters = [('participant_id', '=', participant_id)]
-        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq", filters=filters)
-        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq', filters=filters)
-        .sort_values(["experiment", "participant_id", "trial_id","time"])
-        )
-        df_combined = combine_samples_events(df_sample, df_event)
         
-        logging.info("Starting event feature extraction")
-        event_feature_functions = EXPERIMENT_EVENT_FEATURE_MAP[experiment]
-        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
+        if event_features:
+            logging.info("Starting event feature extraction")
+            df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq", filters=filters)
+            event_feature_functions = EXPERIMENT_EVENT_FEATURE_MAP[experiment]
+            df_event_features_list = [f(df=df_event) for f in event_feature_functions]
 
-        logging.info("Starting sample feature extraction")
-        sample_feature_functions = EXPERIMENT_SAMPLE_FEATURE_MAP[experiment]
-        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
+        if sample_features:
+            logging.info("Starting sample feature extraction")
+            df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq', filters=filters)
+            .sort_values(["experiment", "participant_id", "trial_id","time"])
+            )
+            sample_feature_functions = EXPERIMENT_SAMPLE_FEATURE_MAP[experiment]
+            df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
         
-        if experiment in EXPERIMENT_COMBINED_FEATURE_MAP:
+        if experiment in EXPERIMENT_COMBINED_FEATURE_MAP and (event_features and sample_features):
             logging.info("Starting combined feature extraction")
+            df_combined = combine_samples_events(df_sample, df_event)        
             combined_feature_functions = EXPERIMENT_COMBINED_FEATURE_MAP[experiment]
             df_combined_features_list = [f(df=df_combined) for f in combined_feature_functions]
         
-            df_features_par_list = df_event_features_list + df_sample_features_list + df_combined_features_list
-        else:
-            df_features_par_list = df_event_features_list + df_sample_features_list
+        df_features_par_list = df_event_features_list + df_sample_features_list + df_combined_features_list
     
         df_features_par = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_par_list)
 
@@ -952,7 +956,7 @@ def get_features(experiment) -> pd.DataFrame:
     
     df_features = pd.concat(df_features_all_participants, ignore_index=True)
     
-    logging.info("Finished extracting evil bastard features")
+    logging.info(f"Finished extracting {experiment} features")
     
     return df_features
 

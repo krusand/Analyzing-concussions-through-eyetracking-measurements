@@ -741,24 +741,18 @@ def king_devick_get_avg_time_elapsed_pr_trial(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def king_devick_get_pct_wrong_directional_saccades(df: pd.DataFrame) -> pd.DataFrame:
-    def add_total_trials(df:pd.DataFrame) -> pd.DataFrame:
-        return (df
-                .groupby(["experiment", "participant_id", "trial_id"])
-                .transform(lambda group: len(group))
-                )
-    
+
     
     logging.info("Adding saccades pr. second")
     df = (df
         .query("(eye == 'R') or (eye.isnull())") # right eye or is na
         .sort_values(by=["participant_id", "trial_id","time"])
-        .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
-        .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
         .assign(saccade_direction = lambda x: np.select([
                                                         (x["event"] == 'ESACC') & (x["end_x"] > x["start_x"]),
                                                         (x["event"] == 'ESACC') & (x["end_x"] < x["start_x"])],
                                                         ["right", "left"], default=None))
         .query("event == 'ESACC'")
+        .query("time/1000 < time_elapsed")
         .groupby(["experiment", "participant_id", "trial_id", "saccade_direction"])
         .size()
         .reset_index(name="n_saccades")
@@ -785,8 +779,6 @@ def king_devick_get_saccades_pr_second(df: pd.DataFrame) -> pd.DataFrame:
     df = (df
         .query("(eye == 'R') or (eye.isnull())") # right eye or is na
         .sort_values(by=["participant_id", "trial_id","time"])
-        .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
-        .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
         .assign(trial_active_duration_seconds = lambda x: (
                 x.sort_values(by=["participant_id", "trial_id", "time"])
                 .groupby(["participant_id", "trial_id"])["time_elapsed"]
@@ -795,6 +787,7 @@ def king_devick_get_saccades_pr_second(df: pd.DataFrame) -> pd.DataFrame:
                 ))
             ))
         .query("event == 'ESACC'")
+        .query("time/1000 < time_elapsed")
         .groupby(["experiment", "participant_id", "trial_id", "trial_active_duration_seconds"])
         .size()
         .reset_index(name="n_saccades")
@@ -806,7 +799,6 @@ def king_devick_get_saccades_pr_second(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
     return df
-
 
 
 def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.DataFrame:

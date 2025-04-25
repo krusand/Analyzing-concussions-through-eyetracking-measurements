@@ -600,7 +600,7 @@ def fitts_law_add_fixation_area(df: pd.DataFrame) -> pd.DataFrame:
 def fitts_law_get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Adding fixations pr. second")
     df = (df.query("stimulus_active == True")
-        .query("(eye == 'R') or (eye != eye)") # right eye or is na
+        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
         .sort_values(by=["participant_id", "trial_id","time"])
         .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
         .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
@@ -627,14 +627,12 @@ def fitts_law_get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
 def fitts_law_add_nearest_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Adding fixation overshoot")
     result = []
-    
     grouped_df = df.sort_values(['participant_id', 'trial_id', 'time']).groupby(['participant_id', 'trial_id'])
-    
+
     for (participant, trial), group in tqdm(grouped_df):
+
         group = group.copy()
-        
         stimulus = group.query("event == 'FIXPOINT'")
-        
         stimulus_coords = [
             (stimulus.iloc[0]["stimulus_x"], stimulus.iloc[0]["stimulus_y"]),
             (stimulus.iloc[1]["stimulus_x"], stimulus.iloc[1]["stimulus_y"])
@@ -644,7 +642,7 @@ def fitts_law_add_nearest_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
             for i, (sx, sy) in enumerate(stimulus_coords, start=1):
                 row[f"distance_to_stimulus_{i}"] = np.sqrt(np.power((row["x"] - sx),2) + np.power((row["y"] - sy),2))
             return row
-        
+
         group = group.apply(compute_distances, axis=1)
         result.append(group)
         
@@ -658,7 +656,7 @@ def fitts_law_get_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
             
     df = (df
     .query("stimulus_active == True")
-    .query("(eye == 'R') or (eye != eye)") # right eye or is na
+    .query("( eye == 'R' ) or ( eye.isnull() )") # right eye or is na
     .sort_values(by=["participant_id", "trial_id","time"])
     .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
     .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())

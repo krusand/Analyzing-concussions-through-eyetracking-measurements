@@ -200,6 +200,35 @@ def get_distance_between_fixations(df: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
+
+def get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
+    logging.info("Adding fixations pr. second")
+    df = (df.query("stimulus_active == True")
+        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
+        .sort_values(by=["participant_id", "trial_id","time"])
+        .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
+        .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
+        .assign(max_event_time = lambda x: (
+                x.sort_values(by=["participant_id", "trial_id", "time"])
+                .groupby(["participant_id", "trial_id"])["time"]
+                .transform(lambda group: (
+                    group.iloc[-1]
+                ))
+            ))
+        .assign(trial_active_duration_seconds = lambda x: (x["max_event_time"] - x["stimulus_time"])/1000)
+        .query("event == 'EFIX'")
+        .groupby(["experiment", "participant_id", "trial_id", "trial_active_duration_seconds"])
+        .size()
+        .reset_index(name="n_fixations")
+        .assign(fixations_per_second=lambda x: x["n_fixations"] / x["trial_active_duration_seconds"])
+        .groupby(["experiment", "participant_id"])
+        .agg(avg_fixations_pr_second = ('fixations_per_second', 'mean'),
+             std_fixations_pr_second = ('fixations_per_second', 'std'))
+        .reset_index()
+    )
+    return df
+
+
 ##################
 ## ANTI SACCADE ##
 ##################
@@ -638,7 +667,7 @@ def fitts_law_add_nearest_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
     result = []
     grouped_df = df.sort_values(['participant_id', 'trial_id', 'time']).groupby(['participant_id', 'trial_id'])
 
-    for (participant, trial), group in tqdm(grouped_df):
+    for (participant, trial), group in grouped_df:
 
         group = group.copy()
         stimulus = group.query("event == 'FIXPOINT'")
@@ -953,12 +982,11 @@ def get_evil_bastard_features() -> pd.DataFrame:
 EXPERIMENT_EVENT_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature],
     "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature],
-    "FITTS_LAW" : [get_pre_calculated_metrics_feature, fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second],
+    "FITTS_LAW" : [get_pre_calculated_metrics_feature, fitts_law_get_fixation_overshoot, get_fixations_pr_second],
     "KING_DEVICK" : [get_pre_calculated_metrics_feature, king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, king_devick_get_pct_wrong_directional_saccades, king_devick_get_saccades_pr_second],
-    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
-    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
-    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
-    "FIXATION": [get_pre_calculated_metrics_feature, get_distance_between_fixations]
+    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations,get_fixations_pr_second],
+    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations,get_fixations_pr_second],
+    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations,get_fixations_pr_second]
 }
 EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_acceleration_feature, get_disconjugacy_feature],
@@ -978,7 +1006,7 @@ EXPERIMENT_COMBINED_FEATURE_MAP = {
 }
 
 def get_features(experiment: str, event_features: bool, sample_features: bool) -> pd.DataFrame:
-    """Runs all features extractions
+    """Runs all feature extractions
 
     Returns:
         pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features

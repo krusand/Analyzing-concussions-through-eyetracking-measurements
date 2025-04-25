@@ -739,6 +739,68 @@ def king_devick_get_avg_time_elapsed_pr_trial(df: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
+
+def king_devick_get_pct_wrong_directional_saccades(df: pd.DataFrame) -> pd.DataFrame:
+
+    
+    logging.info("Adding saccades pr. second")
+    df = (df
+        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
+        .sort_values(by=["participant_id", "trial_id","time"])
+        .assign(saccade_direction = lambda x: np.select([
+                                                        (x["event"] == 'ESACC') & (x["end_x"] > x["start_x"]),
+                                                        (x["event"] == 'ESACC') & (x["end_x"] < x["start_x"])],
+                                                        ["right", "left"], default=None))
+        .query("event == 'ESACC'")
+        .query("time/1000 < time_elapsed")
+        .groupby(["experiment", "participant_id", "trial_id", "saccade_direction"])
+        .size()
+        .reset_index(name="n_saccades")
+        .assign(n_trial_saccades = lambda x: (x
+            .groupby(["participant_id", "trial_id"])["n_saccades"]
+            .transform(lambda group: (
+                    group.sum()
+                ))
+            ))
+        .assign(pct_saccade = lambda x: 100* x["n_saccades"] / x["n_trial_saccades"])
+        .query("saccade_direction == 'left'")
+        .groupby(["experiment", "participant_id"])
+        .agg(
+            avg_wrong_direction_saccade_pct = ('pct_saccade', 'mean'),
+            std_wrong_direction_saccade_pct = ('pct_saccade', 'std')
+        )
+        .reset_index()
+    )
+    return df
+
+
+def king_devick_get_saccades_pr_second(df: pd.DataFrame) -> pd.DataFrame:
+    logging.info("Adding saccades pr. second")
+    df = (df
+        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
+        .sort_values(by=["participant_id", "trial_id","time"])
+        .assign(trial_active_duration_seconds = lambda x: (
+                x.sort_values(by=["participant_id", "trial_id", "time"])
+                .groupby(["participant_id", "trial_id"])["time_elapsed"]
+                .transform(lambda group: (
+                    group.iloc[0]
+                ))
+            ))
+        .query("event == 'ESACC'")
+        .query("time/1000 < time_elapsed")
+        .groupby(["experiment", "participant_id", "trial_id", "trial_active_duration_seconds"])
+        .size()
+        .reset_index(name="n_saccades")
+        .assign(fixations_per_second=lambda x: x["n_saccades"] / x["trial_active_duration_seconds"])
+        .groupby(["experiment", "participant_id"])
+        .agg(avg_saccades_pr_second = ('fixations_per_second', 'mean'),
+             std_saccades_pr_second = ('fixations_per_second', 'std'),
+             median_saccades_pr_second = ('fixations_per_second', 'median'))
+        .reset_index()
+    )
+    return df
+
+
 def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
     """Runs all king devick features extractions
 
@@ -875,12 +937,12 @@ def get_evil_bastard_features() -> pd.DataFrame:
 ## SMOOTH PURSUIT ##
 ####################
 
-###############333
+###############
 EXPERIMENT_EVENT_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature],
     "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature],
-    "FITTS_LAW" : [fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second, get_pre_calculated_metrics_feature],
-    "KING_DEVICK" : [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature],
+    "FITTS_LAW" : [get_pre_calculated_metrics_feature, fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second],
+    "KING_DEVICK" : [get_pre_calculated_metrics_feature, king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, king_devick_get_pct_wrong_directional_saccades, king_devick_get_saccades_pr_second],
     "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
     "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
     "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations]

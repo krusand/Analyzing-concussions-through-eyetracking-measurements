@@ -176,9 +176,6 @@ def process_asc_files(asc_files, experiment):
     df_events = pd.read_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     df_events = df_events[~(df_events["event"] == "FIXPOINT")]
 
-    df_event_raw = pd.read_parquet(RAW_DIR / f"{experiment}_events.pq")
-
-
     path_save = CLEANED_DIR / f"{experiment}_samples.pq"
     first_write = True
     

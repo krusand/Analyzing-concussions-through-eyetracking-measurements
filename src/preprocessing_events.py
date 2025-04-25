@@ -111,7 +111,6 @@ def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
 ###   EVIL_BASTARD   ###
 ########################
 
-
 def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     logging.info("Preprocessing evil bastard")
     df_trans = (df
@@ -133,8 +132,6 @@ def coalesce_stimulus_coordinates(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[:,"stimulus_y"] = df[["pos_y", "stimulus_y"]].bfill(axis=1)
     df = df.drop(["pos_x", "pos_y"], axis=1)
     return df
-
-
 
 def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing reaction")
@@ -193,7 +190,6 @@ def preprocess_shapes(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
 
 
 
-
 ####################
 ## SMOOTH PURSUIT ##
 ####################
@@ -208,11 +204,25 @@ def preprocess_smooth_pursuit(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
     return df_trans
 
 
+
+#####################
+###   Fixations   ###
+#####################
+
+def preprocess_fixations(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
+    logging.info("Preprocessing fixations")
+    df_trans = (df
+        .pipe(coalesce_time)
+        .pipe(set_column_dtype)
+        .pipe(coalesce_stimulus_coordinates)
+        .pipe(fill_values, ["target_shape", "stimulus_x", "stimulus_y"],backfill=True))
+    
+    return df_trans
+
+
 ###################
 ###   General   ###
 ###################
-
-
 
 def set_column_dtype(df: pd.DataFrame) -> pd.DataFrame:
     logging.info(f"Starting dtype transformation")
@@ -275,65 +285,60 @@ def fill_values(df: pd.DataFrame, fill_on_columns: list, forwardfill:bool = True
 
 def remove_invalid_saccades(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove ESACC events that have a blink occurring during the saccade.
-    
-    A saccade is considered invalid if there is a SBLINK and EBLINK event
-    between the corresponding SSACC and ESACC events.
+    Remove ESACC events that have a blink (SBLINK + EBLINK) during the saccade (SSACC to ESACC).
     """
     logging.info("Remove invalid saccades")
-    # Sort the data by participant_id, trial_id, and time
-    df_sorted = df.sort_values(["participant_id", "trial_id", "time"])
     
-    # Process each participant and trial separately
-    results = []
-    
-    for (participant, trial), group in tqdm(df_sorted.groupby(["participant_id", "trial_id"])):
-        # Reset index to iterate through rows sequentially
+    df_sorted = df.sort_values(["participant_id", "trial_id", "time"]).reset_index()  # keep original index
+    keep_original_indices = []
+
+    for (participant, trial), group in tqdm(df_sorted.groupby(["participant_id", "trial_id"], sort=False)):
         group = group.reset_index(drop=True)
-        rows_to_keep = []
-        
-        # Track current saccade start
-        in_saccade = False
-        has_sblink = False
-        has_eblink = False
-        
-        for i, row in group.iterrows():
-            event = row['event']
-            
-            # Start of a new saccade
+        i = 0
+        while i < len(group):
+            event = group.loc[i, 'event']
             if event == 'SSACC':
-                in_saccade = True
-                has_sblink = False
-                has_eblink = False
-                rows_to_keep.append(row)
-            
-            # During a saccade, track blinks
-            elif in_saccade:
-                if event == 'SBLINK':
-                    has_sblink = True
-                    rows_to_keep.append(row)
-                elif event == 'EBLINK':
-                    has_eblink = True
-                    rows_to_keep.append(row)
-                elif event == 'ESACC':
-                    # Only keep ESACC if there wasn't a complete blink during this saccade
-                    if not (has_sblink and has_eblink):
-                        rows_to_keep.append(row)
-                    in_saccade = False
-                else:
-                    # Keep all other events
-                    rows_to_keep.append(row)
-            
-            # Not in a saccade, keep everything
+                start_idx = i
+                sblink_present = False
+                eblink_present = False
+                i += 1
+                found_esacc = False
+                while i < len(group):
+                    curr_event = group.loc[i, 'event']
+                    if curr_event == 'SBLINK':
+                        sblink_present = True
+                    elif curr_event == 'EBLINK':
+                        eblink_present = True
+                    elif curr_event == 'ESACC':
+                        found_esacc = True
+                        if not (sblink_present and eblink_present):
+                            keep_original_indices.extend(group.loc[start_idx:i+1, 'index'].tolist())
+                        i += 1  # move past the ESACC
+                        break
+                    i += 1
+                if not found_esacc:
+                    # If we never found a matching ESACC, just move on
+                    i = start_idx + 1
             else:
-                rows_to_keep.append(row)
-        
-        # Create a dataframe from the kept rows
-        if rows_to_keep:
-            results.append(pd.DataFrame(rows_to_keep))
+                keep_original_indices.append(group.loc[i, 'index'])
+                i += 1
+
+    # Drop duplicates in case anything got added twice
+    keep_original_indices = list(dict.fromkeys(keep_original_indices))
+
+    return df_sorted[df_sorted["index"].isin(keep_original_indices)].sort_values(["participant_id", "trial_id", "time"]).reset_index(drop=True)
+
+
+def remove_blink_events(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove blink events, as they are only used to remove invalid saccades.
+    """
+    logging.info("Remove start events")
     
-    # Combine all results
-    return pd.concat(results) if results else pd.DataFrame(columns=df.columns)
+    mask = (df["event"] == "SBLINK") | (df["event"] == "EBLINK")
+    df_masked = df.loc[~mask,:]
+    
+    return df_masked
 
 def remove_start_events(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -358,6 +363,7 @@ def preprocess_general(df: pd.DataFrame) -> pd.DataFrame:
         .pipe(remove_trialid_event)
         .pipe(standardise_time)
         .pipe(remove_invalid_saccades)
+        .pipe(remove_blink_events)
         .pipe(remove_start_events)
         
         # This should be last
@@ -376,7 +382,8 @@ def preprocess_experiment(experiment:str) -> None:
         "KING_DEVICK": preprocess_king_devick,
         "EVIL_BASTARD": preprocess_evil_bastard,
         "SHAPES": preprocess_shapes,
-        "SMOOTH_PURSUITS": preprocess_smooth_pursuit
+        "SMOOTH_PURSUITS": preprocess_smooth_pursuit,
+        "FIXATIONS": preprocess_fixations
     }
 
     df = preprocessing_funcs.get(experiment, lambda x,y: x)(df, experiment)

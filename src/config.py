@@ -78,6 +78,7 @@ type_map = {
         'pos_y': 'float64',
         'distance' : "float64",
         'target_width': "float64",
+        'target_shape': "string",
         'marks' : "Int64",
         'time_elapsed': "float64",
         'shape': 'string'

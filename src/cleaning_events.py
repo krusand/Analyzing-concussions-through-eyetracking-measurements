@@ -52,6 +52,14 @@ def remove_invalid_fixpoints(df: pd.DataFrame) -> pd.DataFrame:
              (df['stimulus_x'].between(0, 1920)) | (df['stimulus_x'].isna()) &
              (df['stimulus_y'].between(0, 1080)) | (df['stimulus_y'].isna())
         ]
+    elif experiment == 'FIXATIONS':
+        df[['pos_x', 'pos_y', 'stimulus_x', 'stimulus_y']] = df[['pos_x', 'pos_y', 'stimulus_x', 'stimulus_y']].apply(pd.to_numeric, errors='coerce')
+        filtered_df = df[
+             (df['pos_x'].between(0, 1920)) | (df['pos_x'].isna()) &
+             (df['stimulus_x'].between(0, 1920)) | (df['stimulus_x'].isna()) &
+             (df['pos_y'].between(0, 1080)) | (df['pos_y'].isna()) &
+             (df['stimulus_y'].between(0, 1080)) | (df['stimulus_y'].isna())
+        ]
     else:
         logging.info("Removed 0 rows")
         return df
@@ -100,6 +108,8 @@ def check_fixpoint_amount(df: pd.DataFrame) -> pd.DataFrame:
         query = "n_fixpoints == 2"
     elif experiment == "FITTS_LAW":
         query = "n_fixpoints == 2"
+    elif experiment == "FIXATIONS":
+        query = "n_fixpoints == 1"
     else:
         logging.info("Removed 0 rows")
         return df   
@@ -279,6 +289,7 @@ def clean_events(df:pd.DataFrame) -> pd.DataFrame:
 def main(experiments):
     for experiment in experiments:
         df = pd.read_parquet(RAW_DIR / f"{experiment}_events.pq")
+        logging.info(f"Cleaning experiment: {experiment}")
         cleaned_df = clean_events(df)
         cleaned_df.to_parquet(CLEANED_DIR / f"{experiment}_events.pq")
     

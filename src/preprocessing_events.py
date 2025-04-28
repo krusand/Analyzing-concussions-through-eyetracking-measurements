@@ -69,28 +69,22 @@ def stimulus_onset_time(df: pd.DataFrame) -> pd.DataFrame:
 
 def stimulus_active(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Set stimulus active")
-    if experiment == 'FITTS_LAW':
-        df = df.pipe(fill_values, ["colour"])
-        df = df.assign(
-            stimulus_active = df["colour"]
-                .map({
-                    "255 0 0": True,
-                    None: False
-                }
-            )
-        )
-        df = df.assign(colour = lambda x: np.select([x["event"] == "FIXPOINT"],[x["colour"]], default=None))
-    else:
-        df = df.assign(
-            stimulus_active = df["colour"]
-                .map({
-                    "255 0 0": True,
-                    "255 255 255": False
-                }
-            )
-        )
-    return df
 
+    df = df.sort_values(["participant_id", "trial_id", "time"])
+
+    if experiment in ["FITTS_LAW", "FIXATIONS", "EVIL_BASTARD", "SHAPES", "SMOOTH_PURSUITS"]:
+        condition = df["event"] == "FIXPOINT"
+    if experiment in ["ANTI_SACCADE", "REACTION"]:
+        condition = (df["event"] == "FIXPOINT") & (df["colour"] == RED)
+    
+    df["stimulus_active"] = (
+        df
+        .assign(stimulus_active = np.where(condition, True, None))
+        .groupby(["participant_id", "trial_id"])["stimulus_active"]
+        .transform(lambda x: x.ffill().astype(bool).fillna(False))
+    )
+            
+    return df
 
 def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
     logging.info("Preprocessing anti_saccade")
@@ -117,6 +111,7 @@ def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(coalesce_time)
         .pipe(set_column_dtype)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
+        .pipe(stimulus_active, experiment)
     )
     return df_trans
 
@@ -185,6 +180,7 @@ def preprocess_shapes(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(coalesce_time)
         .pipe(set_column_dtype)
         .pipe(fill_values, ["shape"], backfill=True)
+        .pipe(stimulus_active, experiment)
     )
     return df_trans
 
@@ -195,11 +191,12 @@ def preprocess_shapes(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
 ####################
 
 def preprocess_smooth_pursuit(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
-    logging.info("Preprocessing shapes")
+    logging.info("Preprocessing smooth pursuits")
     df_trans = (df
         .pipe(coalesce_time)
         .pipe(set_column_dtype)
         .pipe(fill_values, ["shape", "speed"], backfill=True)
+        .pipe(stimulus_active, experiment)
     )
     return df_trans
 
@@ -215,7 +212,9 @@ def preprocess_fixations(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(coalesce_time)
         .pipe(set_column_dtype)
         .pipe(coalesce_stimulus_coordinates)
-        .pipe(fill_values, ["target_shape", "stimulus_x", "stimulus_y"],backfill=True))
+        .pipe(fill_values, ["target_shape", "stimulus_x", "stimulus_y"])
+        .pipe(stimulus_active, experiment)
+    )
     
     return df_trans
 
@@ -326,7 +325,7 @@ def remove_invalid_saccades(df: pd.DataFrame) -> pd.DataFrame:
     # Drop duplicates in case anything got added twice
     keep_original_indices = list(dict.fromkeys(keep_original_indices))
 
-    return df_sorted[df_sorted["index"].isin(keep_original_indices)].sort_values(["participant_id", "trial_id", "time"]).reset_index(drop=True)
+    return df_sorted[df_sorted["index"].isin(keep_original_indices)].sort_values(["participant_id", "trial_id", "time"]).drop(["index"],axis=1).reset_index(drop=True)
 
 
 def remove_blink_events(df: pd.DataFrame) -> pd.DataFrame:

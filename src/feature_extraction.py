@@ -32,18 +32,24 @@ def load_features(experiments: list[str]) -> pd.DataFrame:
 
 def load_demographic_info() -> pd.DataFrame:
     logging.info("Loading demographics")
-    demographics = pd.read_excel(DATA_DIR / "demographic_info.xlsx")[["ID", "Group"]]
-
+    demographics = pd.read_excel(DATA_DIR / "demographic_info.xlsx")
+    
+    # Filter
+    demographics = demographics[demographics["Eye tracking date"].notna()]
+    
+    # Mutate
     demographics["y"] = (demographics["Group"] == "PATIENT").astype(int)
     demographics["participant_id"] = demographics["ID"].astype(int)
+    
+    # Select
     demographics = demographics[["participant_id", "y"]]
     return demographics
 
 
-def join_demographic_info_on_features(feature_df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Joining demographics on features")
+def join_features_on_demographic_info(feature_df: pd.DataFrame) -> pd.DataFrame:
+    logging.info("Joining features on demographics")
     demographics = load_demographic_info()
-    return pd.merge(feature_df, demographics, how='left', on='participant_id')
+    return pd.merge(demographics, feature_df, how='left', on='participant_id')
     
     
 def run_feature_extraction(args: argparse.ArgumentParser) -> None:
@@ -53,15 +59,6 @@ def run_feature_extraction(args: argparse.ArgumentParser) -> None:
     sample_features = args.sample_features
     
     for experiment in experiments:
-
-        # func_name = "get_features" #f"get_{experiment.lower()}_features"
-        # feature_func = globals().get(func_name)
-        # if feature_func:
-        #     features = get_features(experiment)#feature_func()
-        #     features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
-        # else:
-        #     raise ValueError(f"No feature extraction function found for: {experiment}")
-
         features = get_features(experiment, event_features, sample_features)
         features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
 
@@ -69,7 +66,7 @@ def run_feature_extraction(args: argparse.ArgumentParser) -> None:
 def main(args: argparse.ArgumentParser) -> None:
     run_feature_extraction(args)
     features = load_features(args.experiments)
-    data = join_demographic_info_on_features(feature_df=features)
+    data = join_features_on_demographic_info(feature_df=features)
     data.to_parquet(FEATURES_DIR / 'features.pq')
     logging.info("Saved features to file")
 

@@ -16,7 +16,7 @@ def rename_columns(df):
     df.columns = [f"{col[0]}" if col[1] == '' else f"{col[0]}_{col[1]}" for col in df.columns.values]
     return df
 
-def combine_samples_events(df_sample: pd.DataFrame, df_event: pd.DataFrame) -> pd.DataFrame:
+def combine_samples_events(df_sample: pd.DataFrame, df_event: pd.DataFrame, experiment: str) -> pd.DataFrame:
     """Combine sample data and event data to get fixpoints.
     
     Args:
@@ -42,18 +42,27 @@ def combine_samples_events(df_sample: pd.DataFrame, df_event: pd.DataFrame) -> p
     df_fixpoints = df_fixpoints.rename(columns={"colour": "fixpoint"})
 
     # Perform a backward-looking join: for each row in sample_df, find the most recent fixpoint time
-    df_sample = pd.merge_asof(
-        df_sample,
-        df_fixpoints,
-        on="time",
-        by=["participant_id", "trial_id"],
-        direction="nearest",
-        tolerance=10
-    )
+    if experiment == "FIXATIONS":
+        df_sample = pd.merge_asof(
+            df_sample,
+            df_fixpoints,
+            on="time",
+            by=["participant_id", "trial_id"],
+            direction="backward"
+        )
+    else:
+        df_sample = pd.merge_asof(
+            df_sample,
+            df_fixpoints,
+            on="time",
+            by=["participant_id", "trial_id"],
+            direction="nearest",
+            tolerance=10
+        )
 
     df_sample["fixpoint"] = df_sample["fixpoint"].map({RED:"red", GREEN:"green", BLUE:"blue", WHITE:"white"})
     
-    return df_sample
+    return df_sample.sort_values(["participant_id", "trial_id", "time"])
 
 ###############
 ### GENERAL ###
@@ -789,8 +798,8 @@ def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.Da
 def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
     features = (df
         .assign(
-            distance_to_fixpoint_left = lambda x: (x["x_left"]-x["stimulus_x"])**2+(x["y_left"]-x["stimulus_y"])**2,
-            distance_to_fixpoint_right = lambda x: (x["x_right"]-x["stimulus_x"])**2+(x["y_right"]-x["stimulus_y"])**2
+            distance_to_fixpoint_left = lambda x: np.sqrt(np.power(x["x_left"]-x["stimulus_x"], 2)+np.power(x["y_left"]-x["stimulus_y"], 2)),
+            distance_to_fixpoint_right = lambda x: np.sqrt(np.power(x["x_right"]-x["stimulus_x"], 2)+np.power(x["y_right"]-x["stimulus_y"], 2))
         )
         .assign(
             distance_to_fixpoint = lambda x: 
@@ -877,7 +886,10 @@ def get_evil_bastard_features() -> pd.DataFrame:
 ## SMOOTH PURSUIT ##
 ####################
 
-###############333
+###################
+###   General   ###
+###################
+
 EXPERIMENT_EVENT_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature],
     "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature],
@@ -885,7 +897,8 @@ EXPERIMENT_EVENT_FEATURE_MAP = {
     "KING_DEVICK" : [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature],
     "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
     "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
-    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations]
+    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations],
+    "FIXATION": [get_pre_calculated_metrics_feature, get_distance_between_fixations]
 }
 EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_acceleration_feature, get_disconjugacy_feature],
@@ -894,12 +907,14 @@ EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "KING_DEVICK" : [get_acceleration_feature, get_disconjugacy_feature],
     "EVIL_BASTARD" : [get_acceleration_feature, get_disconjugacy_feature],
     "SHAPES" : [get_acceleration_feature, get_disconjugacy_feature],
-    "SMOOTH_PURSUITS" : [get_acceleration_feature, get_disconjugacy_feature]
+    "SMOOTH_PURSUITS" : [get_acceleration_feature, get_disconjugacy_feature],
+    "FIXATION" : [get_acceleration_feature, get_disconjugacy_feature]
 }
 EXPERIMENT_COMBINED_FEATURE_MAP = {
     "EVIL_BASTARD" : [get_distance_to_stimulus_features],
     "SHAPES" : [get_distance_to_stimulus_features],
-    "SMOOTH_PURSUITS" : [get_distance_to_stimulus_features]
+    "SMOOTH_PURSUITS" : [get_distance_to_stimulus_features],
+    "FIXATIONS": [get_distance_to_stimulus_features]
 }
 
 def get_features(experiment: str, event_features: bool, sample_features: bool) -> pd.DataFrame:
@@ -944,7 +959,7 @@ def get_features(experiment: str, event_features: bool, sample_features: bool) -
         
         if experiment in EXPERIMENT_COMBINED_FEATURE_MAP and (event_features and sample_features):
             logging.info("Starting combined feature extraction")
-            df_combined = combine_samples_events(df_sample, df_event)        
+            df_combined = combine_samples_events(df_sample, df_event, experiment)        
             combined_feature_functions = EXPERIMENT_COMBINED_FEATURE_MAP[experiment]
             df_combined_features_list = [f(df=df_combined) for f in combined_feature_functions]
         

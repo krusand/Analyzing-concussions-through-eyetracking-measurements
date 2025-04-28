@@ -245,8 +245,8 @@ def get_acceleration_feature(df: pd.DataFrame) -> pd.DataFrame:
             y_acceleration_left = lambda x: (x["y_velocity_left"] - x["y_velocity_left_lagged"]) / (1/2000),
             x_acceleration_right = lambda x: (x["x_velocity_right"] - x["x_velocity_right_lagged"]) / (1/2000),
             y_acceleration_right = lambda x: (x["y_velocity_right"] - x["y_velocity_right_lagged"]) / (1/2000))
-    .assign(x_acceleration = lambda x: np.nanmean(np.array(x["x_acceleration_left"], x["x_acceleration_right"])),
-            y_acceleration = lambda x: np.nanmean(np.array(x["y_acceleration_left"], x["y_acceleration_right"])))
+    .assign(x_acceleration = lambda x: np.nanmean(np.array([x["x_acceleration_left"], x["x_acceleration_right"]])),
+            y_acceleration = lambda x: np.nanmean(np.array([x["y_acceleration_left"], x["y_acceleration_right"]])))
     .assign(total_acceleration_magnitude = lambda x: np.sqrt( np.power(x["x_acceleration"], 2) + np.power(x["y_acceleration"], 2)))
     .groupby(["experiment", "participant_id"])
     .agg({'total_acceleration_magnitude': [np.mean, np.min, np.max, np.median, np.std],

@@ -780,7 +780,8 @@ EXPERIMENT_EVENT_FEATURE_MAP = {
     "KING_DEVICK" : [get_pre_calculated_metrics_feature, king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, king_devick_get_pct_wrong_directional_saccades, king_devick_get_saccades_pr_second],
     "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
     "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
-    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second]
+    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
+    "FIXATIONS" : [get_pre_calculated_metrics_feature, get_fixations_pr_second]
 }
 EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_acceleration_feature, get_disconjugacy_feature],
@@ -790,7 +791,7 @@ EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "EVIL_BASTARD" : [get_acceleration_feature, get_disconjugacy_feature],
     "SHAPES" : [get_acceleration_feature, get_disconjugacy_feature],
     "SMOOTH_PURSUITS" : [get_acceleration_feature, get_disconjugacy_feature],
-    "FIXATION" : [get_acceleration_feature, get_disconjugacy_feature]
+    "FIXATIONS" : [get_acceleration_feature, get_disconjugacy_feature]
 }
 EXPERIMENT_COMBINED_FEATURE_MAP = {
     "EVIL_BASTARD" : [get_distance_to_stimulus_features],

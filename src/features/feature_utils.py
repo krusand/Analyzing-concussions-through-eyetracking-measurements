@@ -162,9 +162,9 @@ def get_distance_between_fixations(df: pd.DataFrame) -> pd.DataFrame:
         where X_FEATURES is a collection of features found by the following cartesian product:
     """
 
-    df = (df.query("event == 'EFIX'")
+    df = (df.query("event == 'EFIX' & stimulus_active")
     .join((df
-        .query("event == 'EFIX'")
+        .query("event == 'EFIX' & stimulus_active")
         .groupby(["experiment", "participant_id", "trial_id", "eye"])[['x','y']].shift(1)
         .rename(columns={"x": "x_lagged", 
             "y": "y_lagged"})))
@@ -757,6 +757,7 @@ def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     
     return features
+
 
 
 ############

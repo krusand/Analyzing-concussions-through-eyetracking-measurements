@@ -10,10 +10,14 @@ import numpy as np
 from functools import reduce
 from tqdm import tqdm
 
-def rename_columns(df):
-    """Renames columns by joining multi-level column names with different delimiters."""
-    # Iterate over all column names
-    df.columns = [f"{col[0]}" if col[1] == '' else f"{col[0]}_{col[1]}" for col in df.columns.values]
+def rename_columns(df: pd.DataFrame, prefix:str = '', suffix: str = '') -> pd.DataFrame:
+    """Renames columns by joining multi-level column names with different delimiters. Used after aggregating data using dict aggregation method"""
+    if prefix != '':
+        prefix = prefix + '_'
+    if suffix != '':
+        suffix = '_' + suffix
+    
+    df.columns = [f"{col[0]}" if col[1] == '' else f"{prefix}{col[0]}_{col[1]}{suffix}" for col in df.columns.values]
     return df
 
 def combine_samples_events(df_sample: pd.DataFrame, df_event: pd.DataFrame, experiment: str) -> pd.DataFrame:
@@ -74,58 +78,36 @@ def get_pre_calculated_metrics_feature(df: pd.DataFrame) -> pd.DataFrame:
     where X_FEATURES is a collection of features found by the following cartesian product:
     {'peak_velocity', 'amplitude', 'duration', 'avg_pupil_size'} x {np.mean, np.min, np.max, np.median, np.std}
     """
-    features_df = (df.groupby(["experiment", "participant_id"])
-    .agg(
-        mean_peak_velocity_sacc = ('peak_velocity', lambda x: x[df.loc[x.index, 'event'] == 'ESACC'].mean()),
-        mean_amplitude_sacc = ('amplitude', lambda x: x[df.loc[x.index, 'event'] == 'ESACC'].mean()),
-        mean_duration_sacc = ('duration', lambda x: x[df.loc[x.index, 'event'] == 'ESACC'].mean()),
-        mean_duration_fix = ('duration', lambda x: x[df.loc[x.index, 'event'] == 'EFIX'].mean()),
-        mean_pupil_size_fix = ('avg_pupil_size', lambda x: x[df.loc[x.index, 'event'] == 'EFIX'].mean()),
+    
+
+    features_sacc = (
+        df
+            .query("event == 'ESACC'")
+            .groupby(["experiment","participant_id"])
+            .agg({'peak_velocity': [np.mean, np.min, np.max, np.median, np.std],
+                    'amplitude': [np.mean, np.min, np.max, np.median, np.std],
+                    'duration': [np.mean, np.min, np.max, np.median, np.std]
+    })
+            .pipe(rename_columns, suffix='sacc')
     )
-    .reset_index()
-    )    
+    features_fix = (
+         df
+            .query("event == 'EFIX'")
+            .groupby(["experiment","participant_id"])
+            .agg({'duration': [np.mean, np.min, np.max, np.median, np.std],
+                    'avg_pupil_size': [np.mean, np.min, np.max, np.median, np.std]
+    })
+            .pipe(rename_columns, suffix='fix')
+    )
+    
+    features_df = pd.merge(features_sacc, features_fix, how='outer', on = ["experiment", "participant_id"])
+    
     return features_df
-
-def get_acceleration_feature(df: pd.DataFrame) -> pd.DataFrame:
-    """Finds acceleration features for anti saccade experiment
-
-    Args:
-        df (pd.DataFrame): Dataframe with raw samples
-
-    Returns:
-        pd.DataFrame: Dataframe with columns ['experiment','participant_id', X_FEATURES]
-        where X_FEATURES is a collection of features found by the following cartesian product:
-        {'total_acceleration_magnitude_left', 'total_acceleration_magnitude_right'} x {np.mean, np.min, np.max, np.median, np.std}
-    """
-    logging.info("Extracting acceleration")
-    acceleration = (df.join((df
-    .groupby(["experiment", "participant_id", "trial_id"])[['x_velocity_left', 'y_velocity_left', 'x_velocity_right', 'y_velocity_right']].shift(1)
-    .rename(columns={'x_velocity_left': 'x_velocity_left_lagged'
-            , 'y_velocity_left': 'y_velocity_left_lagged'
-            , 'x_velocity_right': 'x_velocity_right_lagged'
-            , 'y_velocity_right': 'y_velocity_right_lagged'}))
-    ).assign(x_acceleration_left = lambda x: (x["x_velocity_left"] - x["x_velocity_left_lagged"]) / (1/2000),
-            y_acceleration_left = lambda x: (x["y_velocity_left"] - x["y_velocity_left_lagged"]) / (1/2000),
-            x_acceleration_right = lambda x: (x["x_velocity_right"] - x["x_velocity_right_lagged"]) / (1/2000),
-            y_acceleration_right = lambda x: (x["y_velocity_right"] - x["y_velocity_right_lagged"]) / (1/2000))
-    .assign(total_acceleration_magnitude_left = lambda x: np.sqrt( np.power(x["x_acceleration_left"], 2) + np.power(x["y_acceleration_left"], 2)),
-            total_acceleration_magnitude_right = lambda x: np.sqrt( np.power(x["x_acceleration_right"], 2) + np.power(x["y_acceleration_right"], 2)))
-    .groupby(["experiment", "participant_id"])
-    .agg({'total_acceleration_magnitude_left': [np.mean, np.min, np.max, np.median, np.std],
-        'total_acceleration_magnitude_right': [np.mean, np.min, np.max, np.median, np.std]
-        })
-    .reset_index()
-    .pipe(rename_columns)
-    )
-    return acceleration
-
-# Eye disconjugacy
-# Paper: https://www.liebertpub.com/doi/full/10.1089/neu.2014.3687
 
 def get_disconjugacy_feature(df:pd.DataFrame) -> pd.DataFrame:
     logging.info("Extracting disconjugacy")
     
-    if len(df.query("x_left == x_left & x_right == x_right & y_left == y_left & y_right == y_right"))==0:
+    if len(df.query("x_left.notnull() & x_right.notnull() & y_left.notnull() & y_right.notnull()"))==0:
         disconjugacy = (df
             .sort_values(["experiment", "participant_id", "trial_id", "time"])
             .groupby(["experiment", "participant_id"])
@@ -137,7 +119,7 @@ def get_disconjugacy_feature(df:pd.DataFrame) -> pd.DataFrame:
     
     disconjugacy = (df
         .sort_values(["experiment", "participant_id", "trial_id", "time"])
-        .query("x_left == x_left & x_right == x_right & y_left == y_left & y_right == y_right") # same as not null
+        .query("x_left.notnull() & x_right.notnull() & y_left.notnull() & y_right.notnull()") # same as not null
         .groupby(["experiment", "participant_id"])
         .apply(lambda group: group.assign(
             x_left_rolling=group["x_left"].rolling(window=5, min_periods=1).mean(),
@@ -193,18 +175,18 @@ def get_distance_between_fixations(df: pd.DataFrame) -> pd.DataFrame:
         fixation_distance = lambda x: np.sqrt( np.power(x["x_fixation_dist"],2) + np.power(x["y_fixation_dist"],2))
     )
     .groupby(["experiment", "participant_id"])
-    .agg({'fixation_distance': [np.mean, np.std],
+    .agg({'fixation_distance': [np.mean, np.min, np.max, np.median, np.std],
+          'x_fixation_dist': [np.mean, np.min, np.max, np.median, np.std],
+          'y_fixation_dist': [np.mean, np.min, np.max, np.median, np.std]
     })
     .reset_index()
     .pipe(rename_columns)
     )
     return df
 
-
 def get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
     logging.info("Adding fixations pr. second")
     df = (df.query("stimulus_active == True")
-        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
         .sort_values(by=["participant_id", "trial_id","time"])
         .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
         .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
@@ -217,16 +199,64 @@ def get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
             ))
         .assign(trial_active_duration_seconds = lambda x: (x["max_event_time"] - x["stimulus_time"])/1000)
         .query("event == 'EFIX'")
-        .groupby(["experiment", "participant_id", "trial_id", "trial_active_duration_seconds"])
+        .groupby(["experiment", "participant_id", "trial_id", "eye", "trial_active_duration_seconds"])
         .size()
         .reset_index(name="n_fixations")
-        .assign(fixations_per_second=lambda x: x["n_fixations"] / x["trial_active_duration_seconds"])
-        .groupby(["experiment", "participant_id"])
-        .agg(avg_fixations_pr_second = ('fixations_per_second', 'mean'),
-             std_fixations_pr_second = ('fixations_per_second', 'std'))
+        .assign(
+            fixations_per_second_raw = lambda x: x["n_fixations"] / x["trial_active_duration_seconds"]
+        )
+        .groupby(["experiment", "participant_id", "trial_id"])
+        .agg(
+            total_fixations_per_second = ("fixations_per_second_raw", "sum"),
+            n_eyes = ("eye", "nunique")
+        )
         .reset_index()
+        .assign(
+            fixations_per_second = lambda x: x["total_fixations_per_second"] / x["n_eyes"]
+        )
+        .groupby(["experiment", "participant_id"])
+        .agg({
+            'fixations_per_second': [np.mean, np.min, np.max, np.median, np.std],
+        })
+        .reset_index()
+        .pipe(rename_columns)
     )
     return df
+
+def get_acceleration_feature(df: pd.DataFrame) -> pd.DataFrame:
+    """Finds acceleration features
+
+    Args:
+        df (pd.DataFrame): Dataframe with raw samples
+
+    Returns:
+        pd.DataFrame: Dataframe with columns ['experiment','participant_id', X_FEATURES]
+        where X_FEATURES is a collection of features found by the following cartesian product:
+        {'total_acceleration_magnitude', 'x_acceleration', 'y_acceleration'} x {np.mean, np.min, np.max, np.median, np.std}
+    """
+    logging.info("Extracting acceleration")
+    acceleration = (df.join((df
+    .groupby(["experiment", "participant_id", "trial_id"])[['x_velocity_left', 'y_velocity_left', 'x_velocity_right', 'y_velocity_right']].shift(1)
+    .rename(columns={'x_velocity_left': 'x_velocity_left_lagged'
+            , 'y_velocity_left': 'y_velocity_left_lagged'
+            , 'x_velocity_right': 'x_velocity_right_lagged'
+            , 'y_velocity_right': 'y_velocity_right_lagged'}))
+    ).assign(x_acceleration_left = lambda x: (x["x_velocity_left"] - x["x_velocity_left_lagged"]) / (1/2000),
+            y_acceleration_left = lambda x: (x["y_velocity_left"] - x["y_velocity_left_lagged"]) / (1/2000),
+            x_acceleration_right = lambda x: (x["x_velocity_right"] - x["x_velocity_right_lagged"]) / (1/2000),
+            y_acceleration_right = lambda x: (x["y_velocity_right"] - x["y_velocity_right_lagged"]) / (1/2000))
+    .assign(x_acceleration = lambda x: np.nanmean(np.array([x["x_acceleration_left"], x["x_acceleration_right"]])),
+            y_acceleration = lambda x: np.nanmean(np.array([x["y_acceleration_left"], x["y_acceleration_right"]])))
+    .assign(total_acceleration_magnitude = lambda x: np.sqrt( np.power(x["x_acceleration"], 2) + np.power(x["y_acceleration"], 2)))
+    .groupby(["experiment", "participant_id"])
+    .agg({'total_acceleration_magnitude': [np.mean, np.min, np.max, np.median, np.std],
+        'x_acceleration': [np.mean, np.min, np.max, np.median, np.std],
+        'y_acceleration': [np.mean, np.min, np.max, np.median, np.std]
+        })
+    .reset_index()
+    .pipe(rename_columns)
+    )
+    return acceleration
 
 
 ##################
@@ -505,255 +535,72 @@ def reaction_get_reaction_time_feature(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-def get_reaction_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
-    """Runs all reaction feature extractions
-
-    Args:
-        df_event (pd.DataFrame): The preprocessed event dataframe
-        df_samples (pd.DataFrame): The preprocessed sample dataframe
-        
-    Returns:
-        pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
-    """
-    logging.info("Extracting reaction features")
-    
-    experiment = "REACTION"
-    df_event_features_list=[]
-    df_sample_features_list=[]
-    
-
-    if event_features:
-        logging.info("Starting event feature extraction")
-        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-
-        event_feature_functions = [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature]
-        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-
-    if sample_features:
-        logging.info("Starting sample feature extraction")
-
-        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-        .sort_values(["experiment", "participant_id", "trial_id","time"])
-        )
-    
-        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
-    
-    df_features_list = df_event_features_list + df_sample_features_list
-    
-    df_features = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_list)
-   
-    logging.info("Finished extracting reaction features")
-
-    return df_features
-    
-
 ###############
 ## FITTS LAW ##
 ###############
 
-def fitts_law_add_saccade_direction(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Adding saccade direction")
-    df = (df
-        .assign(saccade_direction_x = lambda x: np.select([(x["event"] == 'ESACC') & (np.abs(x["end_x"] - x["start_x"]) < 50),
-                                                        (x["event"] == 'ESACC') & (x["end_x"] > x["start_x"]),
-                                                        (x["event"] == 'ESACC') & (x["end_x"] < x["start_x"])],
-                                                        ['no_direction',"right", "left"], default=None))
-        .assign(saccade_direction_y = lambda x: np.select([(x["event"] == 'ESACC') & (np.abs(x["end_y"] - x["start_y"]) < 50),
-                                                        (x["event"] == 'ESACC') & (x["end_y"] > x["start_y"]),
-                                                        (x["event"] == 'ESACC') & (x["end_y"] < x["start_y"])],
-                                                        ['no_direction',"up", "down"], default=None))
-        .assign(saccade_direction = lambda x: np.select([(x["saccade_direction_x"].isin(["right", "left"])) & (x["saccade_direction_y"].isin(["up", "down"]))
-                                                         , (x["saccade_direction_x"].isin(["right", "left"])) & (x["saccade_direction_y"] == "no_direction")
-                                                         , (x["saccade_direction_x"] == "no_direction") & (x["saccade_direction_y"].isin(["down", "up"]))
-                                                         , (x["saccade_direction_x"] == "no_direction") & (x["saccade_direction_y"] == "no_direction")
-                                                        ]
-                                                        , [(x["saccade_direction_x"] + "_" + x["saccade_direction_y"])
-                                                         , (x["saccade_direction_x"])
-                                                         , (x["saccade_direction_y"])
-                                                         , 'no_direction'
-                                                        ]
-                                                        , default=None))
-    )
-    return df
-
-def fitts_law_add_stimulus_direction(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Adding stimulus direction")
-
-    MIDDLE_FIXPOINT_X=960
-    MIDDLE_FIXPOINT_Y=540
-    
-    df = (df
-        .assign(stimulus_direction_x = lambda x: np.select([(x["event"] == 'FIXPOINT') & (np.abs(x["stimulus_x"] - MIDDLE_FIXPOINT_X) < 50),
-                                                        (x["event"] == 'FIXPOINT') & (x["stimulus_x"] > MIDDLE_FIXPOINT_X),
-                                                        (x["event"] == 'FIXPOINT') & (x["stimulus_x"] < MIDDLE_FIXPOINT_X)],
-                                                        ["middle", "right", "left"], default=None))
-        .assign(stimulus_direction_y = lambda x: np.select([(x["event"] == 'FIXPOINT') & (np.abs(x["stimulus_y"] - MIDDLE_FIXPOINT_Y) < 50),
-                                                        (x["event"] == 'FIXPOINT') & (x["stimulus_y"] > MIDDLE_FIXPOINT_Y),
-                                                        (x["event"] == 'FIXPOINT') & (x["stimulus_y"] < MIDDLE_FIXPOINT_Y)],
-                                                        ['middle',"up", "down"], default=None))
-        .assign(stimulus_direction = lambda x: np.select([(x["stimulus_direction_x"].isin(["right", "left"])) & (x["stimulus_direction_y"].isin(["up", "down"]))
-                                                         , (x["stimulus_direction_x"].isin(["right", "left"])) & (x["stimulus_direction_y"] == "middle")
-                                                         , (x["stimulus_direction_x"] == "middle") & (x["stimulus_direction_y"].isin(["right", "left"]))
-                                                         , (x["stimulus_direction_x"] == "middle") & (x["stimulus_direction_y"] == "middle")
-                                                        ]
-                                                        , [(x["stimulus_direction_x"] + "_" + x["stimulus_direction_y"])
-                                                         , (x["stimulus_direction_x"])
-                                                         , (x["stimulus_direction_x"])
-                                                         , 'middle'
-                                                        ]
-                                                        , default=None))
-    )
-    return df
-
-def fitts_law_add_fixation_area(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Adding fixation area")
-    
-    MIDDLE_FIXPOINT_X=960
-    MIDDLE_FIXPOINT_Y=540
-    
-    df = (df
-        .assign(fixation_area_x = lambda x: np.select([(x["event"] == 'EFIX') & (np.abs(x["x"] - MIDDLE_FIXPOINT_X) < 50),
-                                                        (x["event"] == 'EFIX') & (x["x"] > MIDDLE_FIXPOINT_X),
-                                                        (x["event"] == 'EFIX') & (x["x"] < MIDDLE_FIXPOINT_X)],
-                                                        ["middle", "right", "left"], default=None))
-        .assign(fixation_area_y = lambda x: np.select([(x["event"] == 'EFIX') & (np.abs(x["y"] - MIDDLE_FIXPOINT_Y) < 50),
-                                                        (x["event"] == 'EFIX') & (x["y"] > MIDDLE_FIXPOINT_Y),
-                                                        (x["event"] == 'EFIX') & (x["y"] < MIDDLE_FIXPOINT_Y)],
-                                                        ["middle", "up", "down"], default=None))
-        .assign(fixation_area = lambda x: np.select([(x["fixation_area_x"].isin(["right", "left"])) & (x["fixation_area_y"].isin(["up", "down"]))
-                                                         , (x["fixation_area_x"].isin(["right", "left"])) & (x["fixation_area_y"] == "middle")
-                                                         , (x["fixation_area_x"] == "middle") & (x["fixation_area_y"].isin(["right", "left"]))
-                                                         , (x["fixation_area_x"] == "middle") & (x["fixation_area_y"] == "middle")
-                                                        ]
-                                                        , [(x["fixation_area_x"] + "_" + x["fixation_area_y"])
-                                                         , (x["fixation_area_x"])
-                                                         , (x["fixation_area_x"])
-                                                         , 'middle'
-                                                        ]
-                                                        , default=None))
-    )
-    return df
-
-def fitts_law_get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Adding fixations pr. second")
-    df = (df.query("stimulus_active == True")
-        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
-        .sort_values(by=["participant_id", "trial_id","time"])
-        .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
-        .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
-        .assign(max_event_time = lambda x: (
-                x.sort_values(by=["participant_id", "trial_id", "time"])
-                .groupby(["participant_id", "trial_id"])["time"]
-                .transform(lambda group: (
-                    group.iloc[-1]
-                ))
-            ))
-        .assign(trial_active_duration_seconds = lambda x: (x["max_event_time"] - x["stimulus_time"])/1000)
-        .query("event == 'EFIX'")
-        .groupby(["experiment", "participant_id", "trial_id", "trial_active_duration_seconds"])
-        .size()
-        .reset_index(name="n_fixations")
-        .assign(fixations_per_second=lambda x: x["n_fixations"] / x["trial_active_duration_seconds"])
-        .groupby(["experiment", "participant_id"])
-        .agg(avg_fixations_pr_second = ('fixations_per_second', 'mean'),
-             std_fixations_pr_second = ('fixations_per_second', 'std'))
-        .reset_index()
-    )
-    return df
-
 def fitts_law_add_nearest_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Adding fixation overshoot")
-    result = []
-    grouped_df = df.sort_values(['participant_id', 'trial_id', 'time']).groupby(['participant_id', 'trial_id'])
+    logging.info("Adding fixation overshoot with piping")
 
-    for (participant, trial), group in grouped_df:
-
-        group = group.copy()
-        stimulus = group.query("event == 'FIXPOINT'")
-        stimulus_coords = [
-            (stimulus.iloc[0]["stimulus_x"], stimulus.iloc[0]["stimulus_y"]),
-            (stimulus.iloc[1]["stimulus_x"], stimulus.iloc[1]["stimulus_y"])
-        ]
-        
-        def compute_distances(row):
-            for i, (sx, sy) in enumerate(stimulus_coords, start=1):
-                row[f"distance_to_stimulus_{i}"] = np.sqrt(np.power((row["x"] - sx),2) + np.power((row["y"] - sy),2))
-            return row
-
-        group = group.apply(compute_distances, axis=1)
-        result.append(group)
-        
-    df_with_distances = pd.concat(result, ignore_index=True)
-
-    df_with_distances['distance_to_nearest_stimulus'] = df_with_distances[['distance_to_stimulus_1','distance_to_stimulus_2']].min(axis=1)
-
-    return df_with_distances
+    df = (
+        df.sort_values(["participant_id", "trial_id", "time"])
+          .groupby(["participant_id", "trial_id"], group_keys=False)
+          .apply(lambda group: (
+              group.assign(
+                  distance_to_stimulus_1 = lambda x: np.sqrt(
+                      np.power(x["x"] - group.query("event == 'FIXPOINT'").iloc[0]["stimulus_x"], 2) +
+                      np.power(x["y"] - group.query("event == 'FIXPOINT'").iloc[0]["stimulus_y"], 2)
+                  ),
+                  distance_to_stimulus_2 = lambda x: np.sqrt(
+                      np.power(x["x"] - group.query("event == 'FIXPOINT'").iloc[1]["stimulus_x"], 2) +
+                      np.power(x["y"] - group.query("event == 'FIXPOINT'").iloc[1]["stimulus_y"], 2)
+                  )
+              )
+          ))
+          .assign(
+              distance_to_nearest_stimulus = lambda x: x[["distance_to_stimulus_1", "distance_to_stimulus_2"]].min(axis=1)
+          )
+    )
+    return df
 
 def fitts_law_get_fixation_overshoot(df: pd.DataFrame) -> pd.DataFrame:
-            
+    logging.info("Calculating fixation overshoot summary with eye scaling")
+
     df = (df
-    .query("stimulus_active == True")
-    .query("( eye == 'R' ) or ( eye.isnull() )") # right eye or is na
-    .sort_values(by=["participant_id", "trial_id","time"])
-    .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
-    .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
-    .pipe(fitts_law_add_saccade_direction)
-    .pipe(fitts_law_add_stimulus_direction)
-    .pipe(fitts_law_add_fixation_area) 
-    .pipe(fitts_law_add_nearest_fixation_overshoot)
-    .groupby(["experiment", "participant_id"])
-    .agg(avg_fixation_overshoot = ('distance_to_nearest_stimulus', 'mean'),
-         std_fixation_overshoot = ('distance_to_nearest_stimulus', 'std'))
-    .reset_index()
+        .query("stimulus_active == True")
+        .sort_values(by=["participant_id", "trial_id", "time"])
+        .assign(
+            stimulus_time = lambda x: np.select(
+                [x.event == "FIXPOINT", x.event != "FIXPOINT"],
+                [x.time, None]
+            )
+        )
+        .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
+        .pipe(fitts_law_add_nearest_fixation_overshoot)
+        .query("event == 'EFIX'")
+        .groupby(["experiment", "participant_id", "trial_id", "eye"])
+        .agg(
+            avg_fixation_overshoot_eye=('distance_to_nearest_stimulus', 'mean')
+        )
+        .reset_index()
+        .groupby(["experiment", "participant_id", "trial_id"])
+        .agg(
+            total_fixation_overshoot=('avg_fixation_overshoot_eye', 'sum'),
+            n_eyes=('eye', 'nunique')
+        )
+        .reset_index()
+        .assign(
+            fixation_overshoot = lambda x: x["total_fixation_overshoot"] / x["n_eyes"]
+        )
+        .groupby(["experiment", "participant_id"])
+        .agg({
+            'fixation_overshoot': [np.mean, np.min, np.max, np.median, np.std]
+        })
+        .reset_index()
+        .pipe(rename_columns)
     )
 
-    
     return df
-
-def get_fitts_law_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
-    """Runs all fitts law features extractions
-
-    Args:
-        df_event (pd.DataFrame): The preprocessed event dataframe
-        df_samples (pd.DataFrame): The preprocessed sample dataframe
-
-    Returns:
-        pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
-    """
-    logging.info("Starting fitts law feature extraction")
-    
-    experiment = "FITTS_LAW"
-    df_event_features_list=[]
-    df_sample_features_list=[]
-    
-
-    if event_features:
-        logging.info("Starting event feature extraction")
-        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-
-        event_feature_functions = [fitts_law_get_fixation_overshoot, fitts_law_get_fixations_pr_second, get_pre_calculated_metrics_feature]
-        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-
-    if sample_features:
-        
-        logging.info("Starting sample feature extraction")
-
-        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-        .sort_values(["experiment", "participant_id", "trial_id","time"])
-        )
-
-        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
-        
-    df_features_list = df_event_features_list + df_sample_features_list
-    
-    df_features = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_list)
-    
-    logging.info("Finished extracting fitts law features")
-
-    return df_features
-
 
 #################
 ## KING DEVICK ##
@@ -777,108 +624,80 @@ def king_devick_get_avg_time_elapsed_pr_trial(df: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-
 def king_devick_get_pct_wrong_directional_saccades(df: pd.DataFrame) -> pd.DataFrame:
 
     
     logging.info("Adding saccades pr. second")
     df = (df
-        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
         .sort_values(by=["participant_id", "trial_id","time"])
         .assign(saccade_direction = lambda x: np.select([
                                                         (x["event"] == 'ESACC') & (x["end_x"] > x["start_x"]),
                                                         (x["event"] == 'ESACC') & (x["end_x"] < x["start_x"])],
                                                         ["right", "left"], default=None))
         .query("event == 'ESACC'")
-        .query("time/1000 < time_elapsed")
-        .groupby(["experiment", "participant_id", "trial_id", "saccade_direction"])
+        .query("time/1000 < time_elapsed") # acts as stimulus_active
+        .groupby(["experiment", "participant_id", "trial_id", "eye", "saccade_direction"])
         .size()
         .reset_index(name="n_saccades")
-        .assign(n_trial_saccades = lambda x: (x
-            .groupby(["participant_id", "trial_id"])["n_saccades"]
-            .transform(lambda group: (
-                    group.sum()
-                ))
-            ))
+        .assign(n_trial_saccades = lambda x: x.groupby(["participant_id", "trial_id", "eye"])["n_saccades"].transform('sum'))
         .assign(pct_saccade = lambda x: 100* x["n_saccades"] / x["n_trial_saccades"])
         .query("saccade_direction == 'left'")
-        .groupby(["experiment", "participant_id"])
+        .groupby(["experiment", "participant_id", "trial_id"])
         .agg(
-            avg_wrong_direction_saccade_pct = ('pct_saccade', 'mean'),
-            std_wrong_direction_saccade_pct = ('pct_saccade', 'std')
+            total_wrong_saccade_pct=('pct_saccade', 'sum'),
+            n_eyes=('eye', 'nunique')
         )
         .reset_index()
+        .assign(
+            wrong_direction_saccade_pct = lambda x: x["total_wrong_saccade_pct"] / x["n_eyes"]
+        )
+        .groupby(["experiment", "participant_id"])
+        .agg({
+            'wrong_direction_saccade_pct' : [np.mean, np.min, np.max, np.median, np.std]
+        })
+        .reset_index()
+        .pipe(rename_columns)
     )
     return df
-
 
 def king_devick_get_saccades_pr_second(df: pd.DataFrame) -> pd.DataFrame:
-    logging.info("Adding saccades pr. second")
+    logging.info("Calculating saccades per second with eye scaling")
+
     df = (df
-        .query("(eye == 'R') or (eye.isnull())") # right eye or is na
-        .sort_values(by=["participant_id", "trial_id","time"])
-        .assign(trial_active_duration_seconds = lambda x: (
-                x.sort_values(by=["participant_id", "trial_id", "time"])
-                .groupby(["participant_id", "trial_id"])["time_elapsed"]
-                .transform(lambda group: (
-                    group.iloc[0]
-                ))
-            ))
+        .sort_values(by=["participant_id", "trial_id", "time"])
+        .assign(
+            trial_active_duration_seconds = lambda x: (
+                x.groupby(["participant_id", "trial_id"])["time_elapsed"]
+                 .transform('first')
+            )
+        )
         .query("event == 'ESACC'")
-        .query("time/1000 < time_elapsed")
-        .groupby(["experiment", "participant_id", "trial_id", "trial_active_duration_seconds"])
+        .query("time / 1000 < time_elapsed")
+        .groupby(["experiment", "participant_id", "trial_id", "eye", "trial_active_duration_seconds"])
         .size()
         .reset_index(name="n_saccades")
-        .assign(fixations_per_second=lambda x: x["n_saccades"] / x["trial_active_duration_seconds"])
-        .groupby(["experiment", "participant_id"])
-        .agg(avg_saccades_pr_second = ('fixations_per_second', 'mean'),
-             std_saccades_pr_second = ('fixations_per_second', 'std'),
-             median_saccades_pr_second = ('fixations_per_second', 'median'))
+        .assign(
+            saccades_per_second = lambda x: x["n_saccades"] / x["trial_active_duration_seconds"]
+        )
+        .groupby(["experiment", "participant_id", "trial_id"])
+        .agg(
+            total_saccades_per_second=('saccades_per_second', 'sum'),
+            n_eyes=('eye', 'nunique')
+        )
         .reset_index()
+        .assign(
+            saccades_per_second = lambda x: x["total_saccades_per_second"] / x["n_eyes"]
+        )
+        .groupby(["experiment", "participant_id"])
+        .agg({
+            'saccades_per_second':  [np.mean, np.min, np.max, np.median, np.std]
+        })
+        .reset_index()
+        .pipe(rename_columns)
     )
+
     return df
 
-
-def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.DataFrame:
-    """Runs all king devick features extractions
-
-    Args:
-        df_event (pd.DataFrame): The preprocessed event dataframe
-        df_samples (pd.DataFrame): The preprocessed sample dataframe
-    
-    Returns:
-        pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
-    """
-    logging.info("Starting fitts law feature extraction")
-    
-    experiment = "KING_DEVICK"
-    df_event_features_list=[]
-    df_sample_features_list=[]
-    
-    if event_features:
-        logging.info("Starting event feature extraction")
-        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq")
-
-        event_feature_functions = [king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, get_pre_calculated_metrics_feature]
-        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-
-    if sample_features:
-            
-        logging.info("Starting sample feature extraction")
-
-        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq')
-        .sort_values(["experiment", "participant_id", "trial_id","time"])
-        )
-
-        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
-    
-    df_features_list = df_event_features_list + df_sample_features_list
-    
-    df_features = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_list)
-    logging.info("Finished extracting king devick features")
-
-    return df_features    
 
 ##################
 ## EVIL BASTARD ##
@@ -926,7 +745,6 @@ def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
                 , 
                 default=None
             )
-            
         )
         .groupby(["experiment", "participant_id"])
         .agg({
@@ -939,59 +757,6 @@ def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     
     return features
-
-def get_evil_bastard_features() -> pd.DataFrame:
-    """Runs all evil bastard features extractions
-
-    Returns:
-        pd.DataFrame: Dataframe with columns ["experiment", "participant_id", X_FEATURES], where X_FEATURES is a collection of features
-    """
-
-    logging.info("Extracting evil bastard features")
-    
-    experiment = "EVIL_BASTARD"
-    
-    # Read participant and trial id to identify unique participants
-    df_index = pd.read_parquet(
-        f"{PREPROCESSED_DIR}/{experiment}_events.pq", 
-        columns=["participant_id"]
-    )
-    participant_groups = df_index["participant_id"].unique()
-    
-    df_features_all_participants = []
-    for participant_id in tqdm(participant_groups, total=len(participant_groups)):
-        logging.info(f"Processing participant {participant_id}")
-
-        filters = [('participant_id', '=', participant_id)]
-        df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq", filters=filters)
-        df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq', filters=filters)
-        .sort_values(["experiment", "participant_id", "trial_id","time"])
-        )
-        df_combined = combine_samples_events(df_sample, df_event)
-        
-        logging.info("Starting event feature extraction")
-        event_feature_functions = [get_pre_calculated_metrics_feature, get_distance_between_fixations]
-        df_event_features_list = [f(df=df_event) for f in event_feature_functions]
-
-        logging.info("Starting sample feature extraction")
-        sample_feature_functions = [get_acceleration_feature, get_disconjugacy_feature]
-        df_sample_features_list = [f(df=df_sample) for f in sample_feature_functions]
-        
-        logging.info("Starting combined feature extraction")
-        combined_feature_functions = [get_distance_to_stimulus_features]
-        df_combined_features_list = [f(df=df_combined) for f in combined_feature_functions]
-    
-        df_features_par_list = df_event_features_list + df_sample_features_list + df_combined_features_list
-    
-        df_features_par = reduce(lambda x, y: pd.merge(x, y, on = ["experiment", "participant_id"]), df_features_par_list)
-
-        df_features_all_participants.append(df_features_par)
-    
-    df_features = pd.concat(df_features_all_participants, ignore_index=True)
-    
-    logging.info("Finished extracting evil bastard features")
-    
-    return df_features
 
 
 ############
@@ -1007,13 +772,16 @@ def get_evil_bastard_features() -> pd.DataFrame:
 ###################
 
 EXPERIMENT_EVENT_FEATURE_MAP = {
+    # DEBUGGING:
+    
     "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature],
     "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature],
     "FITTS_LAW" : [get_pre_calculated_metrics_feature, fitts_law_get_fixation_overshoot, get_fixations_pr_second],
     "KING_DEVICK" : [get_pre_calculated_metrics_feature, king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, king_devick_get_pct_wrong_directional_saccades, king_devick_get_saccades_pr_second],
-    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations,get_fixations_pr_second],
-    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations,get_fixations_pr_second],
-    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations,get_fixations_pr_second]
+    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
+    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
+    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
+    "FIXATIONS" : [get_pre_calculated_metrics_feature, get_fixations_pr_second]
 }
 EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_acceleration_feature, get_disconjugacy_feature],
@@ -1023,7 +791,7 @@ EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "EVIL_BASTARD" : [get_acceleration_feature, get_disconjugacy_feature],
     "SHAPES" : [get_acceleration_feature, get_disconjugacy_feature],
     "SMOOTH_PURSUITS" : [get_acceleration_feature, get_disconjugacy_feature],
-    "FIXATION" : [get_acceleration_feature, get_disconjugacy_feature]
+    "FIXATIONS" : [get_acceleration_feature, get_disconjugacy_feature]
 }
 EXPERIMENT_COMBINED_FEATURE_MAP = {
     "EVIL_BASTARD" : [get_distance_to_stimulus_features],
@@ -1058,13 +826,13 @@ def get_features(experiment: str, event_features: bool, sample_features: bool) -
 
         filters = [('participant_id', '=', participant_id)]
         
-        if event_features:
+        if experiment in EXPERIMENT_EVENT_FEATURE_MAP and event_features:
             logging.info("Starting event feature extraction")
             df_event = pd.read_parquet(PREPROCESSED_DIR / f"{experiment}_events.pq", filters=filters)
             event_feature_functions = EXPERIMENT_EVENT_FEATURE_MAP[experiment]
             df_event_features_list = [f(df=df_event) for f in event_feature_functions]
 
-        if sample_features:
+        if experiment in EXPERIMENT_SAMPLE_FEATURE_MAP and sample_features:
             logging.info("Starting sample feature extraction")
             df_sample = (pd.read_parquet(PREPROCESSED_DIR / f'{experiment}_samples.pq', filters=filters)
             .sort_values(["experiment", "participant_id", "trial_id","time"])

@@ -887,25 +887,52 @@ def get_king_devick_features(event_features:bool, sample_features:bool) -> pd.Da
 def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
     features = (df
         .assign(
-            distance_to_fixpoint_left = lambda x: np.sqrt(np.power(x["x_left"]-x["stimulus_x"], 2)+np.power(x["y_left"]-x["stimulus_y"], 2)),
-            distance_to_fixpoint_right = lambda x: np.sqrt(np.power(x["x_right"]-x["stimulus_x"], 2)+np.power(x["y_right"]-x["stimulus_y"], 2))
+            distance_to_fixpoint_left_x = lambda x: (x["x_left"]-x["stimulus_x"])**2,
+            distance_to_fixpoint_left_y = lambda x: (x["y_left"]-x["stimulus_y"])**2,
+            distance_to_fixpoint_right_x = lambda x: (x["x_right"]-x["stimulus_x"])**2,
+            distance_to_fixpoint_right_y = lambda x: (x["y_right"]-x["stimulus_y"])**2,
+            distance_to_fixpoint_left = lambda x: x["distance_to_fixpoint_left_x"] + x["distance_to_fixpoint_left_y"],
+            distance_to_fixpoint_right = lambda x: x["distance_to_fixpoint_right_x"] + x["distance_to_fixpoint_right_y"]
         )
         .assign(
-            distance_to_fixpoint = lambda x: 
-                np.where(
-                    ~x["distance_to_fixpoint_left"].isna() & ~x["distance_to_fixpoint_right"].isna(),
-                    (x["distance_to_fixpoint_left"]+x["distance_to_fixpoint_right"])/2,
-                
-                    np.where(
-                        ~x["distance_to_fixpoint_left"].isna(),
-                        x["distance_to_fixpoint_left"],
-                        x["distance_to_fixpoint_right"]
-                    )
-                )
+            distance_to_fixpoint_x = lambda x: np.select(
+                [( x["distance_to_fixpoint_left_x"].notna() & x["distance_to_fixpoint_right_x"].notna() )
+                    ,( x["distance_to_fixpoint_left_x"].notna() )
+                    ,( x["distance_to_fixpoint_right_x"].notna() ) 
+                ]
+                , [  (x["distance_to_fixpoint_left_x"] + x["distance_to_fixpoint_right_x"]) / 2
+                    , x["distance_to_fixpoint_left_x"]
+                    , x["distance_to_fixpoint_right_x"]
+                ], default=None),
+            distance_to_fixpoint_y = lambda x: np.select(
+                [( x["distance_to_fixpoint_left_y"].notna() & x["distance_to_fixpoint_right_y"].notna() )
+                    ,( x["distance_to_fixpoint_left_y"].notna() )
+                    ,( x["distance_to_fixpoint_right_y"].notna() ) 
+                ]
+                , [  (x["distance_to_fixpoint_left_y"] + x["distance_to_fixpoint_right_y"]) / 2
+                    , x["distance_to_fixpoint_left_y"]
+                    , x["distance_to_fixpoint_right_y"]
+                ], default=None),
+            distance_to_fixpoint = lambda x: np.select(
+                [ ( x["distance_to_fixpoint_x"].notna() & x["distance_to_fixpoint_y"].notna() )
+                 , x["distance_to_fixpoint_x"].notna()
+                 , x["distance_to_fixpoint_y"].notna()
+                    
+                ]
+                , [ (x["distance_to_fixpoint_x"] + x["distance_to_fixpoint_y"])
+                   , x['distance_to_fixpoint_x']
+                   , x["distance_to_fixpoint_y"]   
+                ]
+                , 
+                default=None
+            )
+            
         )
         .groupby(["experiment", "participant_id"])
         .agg({
             'distance_to_fixpoint': ["mean", "min", "max", "median", "std"],
+            'distance_to_fixpoint_x': ["mean", "min", "max", "median", "std"],
+            'distance_to_fixpoint_y': ["mean", "min", "max", "median", "std"],
         })
         .reset_index()
         .pipe(rename_columns)

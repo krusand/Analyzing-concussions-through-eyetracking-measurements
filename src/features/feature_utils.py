@@ -162,9 +162,9 @@ def get_distance_between_fixations(df: pd.DataFrame) -> pd.DataFrame:
         where X_FEATURES is a collection of features found by the following cartesian product:
     """
 
-    df = (df.query("event == 'EFIX'")
+    df = (df.query("event == 'EFIX' & stimulus_active")
     .join((df
-        .query("event == 'EFIX'")
+        .query("event == 'EFIX' & stimulus_active")
         .groupby(["experiment", "participant_id", "trial_id", "eye"])[['x','y']].shift(1)
         .rename(columns={"x": "x_lagged", 
             "y": "y_lagged"})))
@@ -218,6 +218,46 @@ def get_fixations_pr_second(df: pd.DataFrame) -> pd.DataFrame:
         .agg({
             'fixations_per_second': [np.mean, np.min, np.max, np.median, np.std],
         })
+        .reset_index()
+        .pipe(rename_columns)
+    )
+    return df
+
+def get_saccades_pr_second(df: pd.DataFrame) -> pd.DataFrame:
+    logging.info("Adding saccades pr. second")
+    df = (df.query("stimulus_active == True")
+        .sort_values(by=["participant_id", "trial_id","time"])
+        .assign(stimulus_time = lambda x: np.select([x.event == "FIXPOINT", x.event != "FIXPOINT"], [x.time, None]))
+        .assign(stimulus_time = lambda x: x["stimulus_time"].ffill())
+        .assign(max_event_time = lambda x: (
+                x.sort_values(by=["participant_id", "trial_id", "time"])
+                .groupby(["participant_id", "trial_id"])["time"]
+                .transform(lambda group: (
+                    group.iloc[-1]
+                ))
+            ))
+        .assign(trial_active_duration_seconds = lambda x: (x["max_event_time"] - x["stimulus_time"])/1000)
+        .query("event == 'ESACC'")
+        .groupby(["experiment", "participant_id", "trial_id", "eye", "trial_active_duration_seconds"])
+        .size()
+        .reset_index(name="n_saccades")
+        .assign(
+            saccades_per_second_raw = lambda x: x["n_saccades"] / x["trial_active_duration_seconds"]
+        )
+        .groupby(["experiment", "participant_id", "trial_id"])
+        .agg(
+            total_saccades_per_second = ("saccades_per_second_raw", "sum"),
+            n_eyes = ("eye", "nunique")
+        )
+        .reset_index()
+        .assign(
+            saccades_per_second = lambda x: x["total_saccades_per_second"] / x["n_eyes"]
+        )
+        .groupby(["experiment", "participant_id"])
+        .agg({
+            'saccades_per_second': [np.mean, np.min, np.max, np.median, np.std],
+        })
+        
         .reset_index()
         .pipe(rename_columns)
     )
@@ -759,6 +799,7 @@ def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
     return features
 
 
+
 ############
 ## SHAPES ##
 ############
@@ -774,14 +815,14 @@ def get_distance_to_stimulus_features(df: pd.DataFrame) -> pd.DataFrame:
 EXPERIMENT_EVENT_FEATURE_MAP = {
     # DEBUGGING:
     
-    "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature],
-    "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature],
-    "FITTS_LAW" : [get_pre_calculated_metrics_feature, fitts_law_get_fixation_overshoot, get_fixations_pr_second],
+    "ANTI_SACCADE" : [get_pre_calculated_metrics_feature, anti_saccade_get_n_correct_trials_feature, anti_saccade_get_prop_trials_feature, anti_saccade_get_reaction_time_feature, get_saccades_pr_second],
+    "REACTION" : [get_pre_calculated_metrics_feature, reaction_get_n_correct_trials_feature, reaction_get_prop_trials_feature, reaction_get_reaction_time_feature, get_saccades_pr_second],
+    "FITTS_LAW" : [get_pre_calculated_metrics_feature, fitts_law_get_fixation_overshoot, get_fixations_pr_second, get_saccades_pr_second],
     "KING_DEVICK" : [get_pre_calculated_metrics_feature, king_devick_get_avg_mistakes_pr_trial, king_devick_get_avg_time_elapsed_pr_trial, king_devick_get_pct_wrong_directional_saccades, king_devick_get_saccades_pr_second],
-    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
-    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
-    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second],
-    "FIXATIONS" : [get_pre_calculated_metrics_feature, get_fixations_pr_second]
+    "EVIL_BASTARD" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second, get_saccades_pr_second],
+    "SHAPES" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second, get_saccades_pr_second],
+    "SMOOTH_PURSUITS" : [get_pre_calculated_metrics_feature, get_distance_between_fixations, get_fixations_pr_second, get_saccades_pr_second],
+    "FIXATIONS" : [get_pre_calculated_metrics_feature, get_fixations_pr_second, get_saccades_pr_second]
 }
 EXPERIMENT_SAMPLE_FEATURE_MAP = {
     "ANTI_SACCADE" : [get_acceleration_feature, get_disconjugacy_feature],

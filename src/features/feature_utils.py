@@ -276,17 +276,19 @@ def get_acceleration_feature(df: pd.DataFrame) -> pd.DataFrame:
     """
     logging.info("Extracting acceleration")
     acceleration = (df.join((df
-    .groupby(["experiment", "participant_id", "trial_id"])[['x_velocity_left', 'y_velocity_left', 'x_velocity_right', 'y_velocity_right']].shift(1)
+    .groupby(["experiment", "participant_id", "trial_id"])
+    [['x_velocity_left', 'y_velocity_left', 'x_velocity_right', 'y_velocity_right']].shift(1)
     .rename(columns={'x_velocity_left': 'x_velocity_left_lagged'
             , 'y_velocity_left': 'y_velocity_left_lagged'
             , 'x_velocity_right': 'x_velocity_right_lagged'
             , 'y_velocity_right': 'y_velocity_right_lagged'}))
-    ).assign(x_acceleration_left = lambda x: (x["x_velocity_left"] - x["x_velocity_left_lagged"]) / (1/2000),
+    )
+    .assign(x_acceleration_left = lambda x: (x["x_velocity_left"] - x["x_velocity_left_lagged"]) / (1/2000),
             y_acceleration_left = lambda x: (x["y_velocity_left"] - x["y_velocity_left_lagged"]) / (1/2000),
             x_acceleration_right = lambda x: (x["x_velocity_right"] - x["x_velocity_right_lagged"]) / (1/2000),
             y_acceleration_right = lambda x: (x["y_velocity_right"] - x["y_velocity_right_lagged"]) / (1/2000))
-    .assign(x_acceleration = lambda x: np.nanmean(np.array([x["x_acceleration_left"], x["x_acceleration_right"]])),
-            y_acceleration = lambda x: np.nanmean(np.array([x["y_acceleration_left"], x["y_acceleration_right"]])))
+    .assign(x_acceleration = lambda x: x[["x_acceleration_left","x_acceleration_right"]].mean(axis=1),
+            y_acceleration = lambda x: x[["y_acceleration_left","y_acceleration_right"]].mean(axis=1))
     .assign(total_acceleration_magnitude = lambda x: np.sqrt( np.power(x["x_acceleration"], 2) + np.power(x["y_acceleration"], 2)))
     .groupby(["experiment", "participant_id"])
     .agg({'total_acceleration_magnitude': [np.mean, np.min, np.max, np.median, np.std],

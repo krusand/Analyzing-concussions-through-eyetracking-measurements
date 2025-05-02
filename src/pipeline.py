@@ -75,10 +75,19 @@ def get_pipeline_steps(experiments: list[str], file_filters: list[str]) -> list[
         
         #### COMBINED: 
         
-        { # PREPROCESSED --> FEATURES
+        { # PREPROCESSED --> FEATURE_EXTRACTION
             "name": "Feature Extraction",
             "script": "feature_extraction.py",
             "description": "Extracts relevant features from preprocessed data",
+                    "args": {
+                    "experiments" : experiments
+            }
+        },
+        
+        { # FEATURE_EXTRACTION --> FEATURE_SELECTION
+            "name": "Feature Selection",
+            "script": "feature_selection.py",
+            "description": "Selects features based on different methods",
                     "args": {
                     "experiments" : experiments
             }

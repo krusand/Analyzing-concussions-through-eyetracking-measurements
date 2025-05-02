@@ -61,14 +61,15 @@ def run_feature_extraction(args: argparse.ArgumentParser) -> None:
     for experiment in experiments:
         features = get_features(experiment, event_features, sample_features)
         features.to_parquet(FEATURES_DIR / f"{experiment}_features.pq")
+        logging.info(f"Saved {experiment} features to file")
 
 
 def main(args: argparse.ArgumentParser) -> None:
     run_feature_extraction(args)
-    features = load_features(args.experiments)
-    data = join_features_on_demographic_info(feature_df=features)
-    data.to_parquet(FEATURES_DIR / 'features.pq')
-    logging.info("Saved features to file")
+    # features = load_features(args.experiments)
+    # data = join_features_on_demographic_info(feature_df=features)
+    # data.to_parquet(FEATURES_DIR / 'features.pq')
+    # logging.info("Saved features to file")
 
 
 if __name__ == '__main__':

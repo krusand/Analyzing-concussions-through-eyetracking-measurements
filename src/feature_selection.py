@@ -401,7 +401,7 @@ def main(args: argparse.ArgumentParser) -> None:
     print(args.experiments)
     features = load_features(args.experiments)
     data = join_features_on_demographic_info(feature_df=features)
-    
+    data.to_parquet(FEATURES_DIR / 'all_features.pq')
     # Select features
     selected_features = select_features(data)
     logging.info("Successfully selected features")

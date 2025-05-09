@@ -97,6 +97,8 @@ def preprocess_anti_saccade(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(standardise_time)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     
     return df_trans
@@ -112,6 +114,8 @@ def preprocess_evil_bastard(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(set_column_dtype)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     return df_trans
 
@@ -136,6 +140,8 @@ def preprocess_reaction(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(coalesce_stimulus_coordinates)
         .pipe(fill_values, ["colour","stimulus_x", "stimulus_y"])
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     return df_trans
 
@@ -151,6 +157,8 @@ def preprocess_fitts_law(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(set_column_dtype)
         .pipe(fill_values, ["distance", "target_width"])
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     return df_trans
 
@@ -165,6 +173,8 @@ def preprocess_king_devick(df: pd.DataFrame, experiment: str) -> pd.DataFrame:
         .pipe(coalesce_time)
         .pipe(set_column_dtype)
         .pipe(fill_values, ["marks", "time_elapsed"], backfill=True)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     return df_trans
 
@@ -181,6 +191,8 @@ def preprocess_shapes(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(set_column_dtype)
         .pipe(fill_values, ["shape"], backfill=True)
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     return df_trans
 
@@ -197,6 +209,8 @@ def preprocess_smooth_pursuit(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(set_column_dtype)
         .pipe(fill_values, ["shape", "speed"], backfill=True)
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     return df_trans
 
@@ -214,6 +228,8 @@ def preprocess_fixations(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
         .pipe(coalesce_stimulus_coordinates)
         .pipe(fill_values, ["target_shape", "stimulus_x", "stimulus_y"])
         .pipe(stimulus_active, experiment)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     
     return df_trans
@@ -222,6 +238,19 @@ def preprocess_fixations(df: pd.DataFrame, experiment:str) -> pd.DataFrame:
 ###################
 ###   General   ###
 ###################
+
+def limit_x_points(df: pd.DataFrame, columns: list = ["stimulus_x", "pos_x", "x", "start_x", "end_x"]) -> pd.DataFrame:
+    for col in columns:
+        if col in df.columns:
+            df.loc[:,col] = df[col].clip(lower=0, upper=1920)
+    return df
+
+
+def limit_y_points(df: pd.DataFrame, columns: list = ["stimulus_y", "pos_y", "y", "start_y", "end_y"]) -> pd.DataFrame:
+    for col in columns:
+        if col in df.columns:
+            df.loc[:,col] = df[col].clip(lower=0, upper=1080)
+    return df
 
 def set_column_dtype(df: pd.DataFrame) -> pd.DataFrame:
     logging.info(f"Starting dtype transformation")

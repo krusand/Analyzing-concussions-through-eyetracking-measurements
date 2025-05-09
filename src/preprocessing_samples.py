@@ -14,9 +14,23 @@ def standardise_time(df):
     df.loc[:,"time"] = df["time"] - min_time
     return df
 
-def preprocess_general(df):
-    df_transformed = (
-        df.pipe(standardise_time)
+def limit_x_points(df: pd.DataFrame, columns: list = ["x_left", "x_right"]) -> pd.DataFrame:
+    for col in columns:
+        if col in df.columns:
+            df.loc[:,col] = df[col].clip(lower=0, upper=1920)
+    return df
+
+def limit_y_points(df: pd.DataFrame, columns: list = ["y_left", "y_right"]) -> pd.DataFrame:
+    for col in columns:
+        if col in df.columns:
+            df.loc[:,col] = df[col].clip(lower=0, upper=1080)
+    return df
+
+def preprocess_general(df: pd.DataFrame) -> pd.DataFrame:
+    df_transformed = (df
+        .pipe(standardise_time)
+        .pipe(limit_x_points)
+        .pipe(limit_y_points)
     )
     
     return df_transformed

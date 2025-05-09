@@ -97,7 +97,7 @@ def remove_multicollineraity(X, y, feature_corr_threshold=0.85,verbose=True):
             continue
         
         # Find highly correlated features
-        corr_features = upper.index[upper[column] > 0.85].tolist()
+        corr_features = upper.index[upper[column] > feature_corr_threshold].tolist()
         
         for corr_feature in corr_features:
             if corr_feature not in to_drop:

@@ -134,6 +134,24 @@ def remove_multicollineraity(X, y, feature_corr_threshold=0.85):
     
     return X_reduced
 
+def remove_outliers(X, method:str = "MAD", threshold:float = 3.0):
+    if method == 'MAD':
+        for col in X.columns:
+            data = X[col]
+            median = np.nanmedian(data)
+            abs_diff = np.abs(data - median)
+            mad = np.nanmedian(abs_diff)
+
+            if mad == 0 or np.isnan(mad):
+                continue
+
+            outlier_mask = (np.abs(data - median)) > (threshold * mad)
+            X.loc[outlier_mask, col] = np.nan
+        return X
+    else:
+        return X
+    
+
 def get_significant_features(X, y, alpha=0.05, return_details=False):
     """
     Identify features that show statistically significant differences between two groups.
@@ -371,9 +389,10 @@ def select_features(features: pd.DataFrame) -> None:
     y = pd.DataFrame(features["y"], columns=["y"])
     X = features.drop(["participant_id", "y"], axis=1)
     
-    X_reduced = (
-        X.pipe(remove_low_variance_features)
+    X_reduced = (X
+        .pipe(remove_low_variance_features)
         .pipe(remove_multicollineraity, y)
+        .pipe(remove_outliers, 'MAD', 10.0)
     )
     
     significant_features = get_significant_features(X_reduced, y, return_details=False)

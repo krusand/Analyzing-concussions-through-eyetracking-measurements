@@ -5,13 +5,14 @@ Eye Tracking Data Processing Pipeline
 This script orchestrates the complete eye tracking data processing workflow
 by running each processing step in sequence.
 """
-
+import timeit
 import sys
 import subprocess
 from pathlib import Path
 from config import *
 import argparse
 
+from datetime import datetime
 
 def get_pipeline_steps(experiments: list[str], file_filters: list[str]) -> list[dict]:
     """
@@ -73,7 +74,7 @@ def get_pipeline_steps(experiments: list[str], file_filters: list[str]) -> list[
             }
         },
         
-        #### COMBINED: 
+        ### COMBINED: 
         
         { # PREPROCESSED --> FEATURE_EXTRACTION
             "name": "Feature Extraction",
@@ -123,10 +124,12 @@ def run_pipeline(experiments, file_filters):
     """Run the complete data processing pipeline"""
     
     logging.info("Starting pipeline")
-    
+
     # Get the directory where the pipeline script is located
     pipeline_dir = Path(__file__).parent.absolute()
-      
+
+    start_dt=datetime.now()
+    print("Starting:", datetime.now())
     # Run each step in sequence
     for step in get_pipeline_steps(experiments, file_filters):
         script_path = pipeline_dir / step["script"]
@@ -136,7 +139,8 @@ def run_pipeline(experiments, file_filters):
             logging.warning(f"Script not found: {script_path}")
             continue
         run_script(script_path, step.get("args"))
-
+    print("Ending:", datetime.now() )
+    print("Ended in:", datetime.now()-start_dt)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract events from ASC files.")

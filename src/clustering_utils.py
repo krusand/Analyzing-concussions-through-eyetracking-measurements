@@ -109,8 +109,9 @@ def remove_multicollineraity(X, y, feature_corr_threshold=0.85,verbose=True):
     
     return X_reduced
 
-def remove_outliers(X, method:str = "MAD", threshold:float = 3.0):
+def remove_outliers(X, method: str = "MAD", threshold: float = 3.0):
     if method == 'MAD':
+        n_nan_bef = X.isna().sum().sum()
         for col in X.columns:
             data = X[col]
             median = np.nanmedian(data)
@@ -122,8 +123,11 @@ def remove_outliers(X, method:str = "MAD", threshold:float = 3.0):
 
             outlier_mask = (np.abs(data - median)) > (threshold * mad)
             X.loc[outlier_mask, col] = np.nan
+        n_nan_after = X.isna().sum().sum()
+        logging.info(f"Removed {n_nan_after - n_nan_bef} data points")
         return X
     else:
+        logging.info(f"Specify other method: Method was {method}")
         return X
 
 
